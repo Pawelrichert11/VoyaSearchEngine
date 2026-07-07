@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowRight, CalendarDays, Check, MapPin, Plus, Search, Sparkles, Users, X } from "lucide-react";
+import { ArrowRight, Building2, CalendarDays, Check, Compass, MapPin, Plane, Plus, Search, Sparkles, Users, X } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
 import { VibePill } from "@/components/voya/VibePill";
 import { RotatingHero } from "@/components/voya/RotatingHero";
@@ -129,27 +129,64 @@ function SearchHome() {
       </section>
 
       {/* Vibe filters */}
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <PillGroup title="Nastrój" caption="Wybierz jak chcesz się poczuć" pills={grouped.mood} selected={selected} toggle={toggle} />
-        <PillGroup
-          title="Rodzaj zakwaterowania"
-          caption="Hotel, apartament, willa, hostel…"
-          pills={grouped.stay.filter((p) => LODGING_TYPES.includes(p.id))}
-          selected={selected} toggle={toggle}
-        />
-        <PillGroup
-          title="Standard i udogodnienia"
-          caption="Gwiazdki, opinie, spa, dla dzieci…"
-          pills={grouped.stay.filter((p) => !LODGING_TYPES.includes(p.id))}
-          selected={selected} toggle={toggle}
-        />
+      <section className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-6">
+        {/* DOKĄD — destynacja */}
         {toMode === "vibe" && (
-          <PillGroup title="Destynacja" caption="Miasto, morze, zwiedzanie…" pills={grouped.destination} selected={selected} toggle={toggle} />
+          <FilterZone
+            icon={<Compass className="h-4 w-4" />}
+            eyebrow="Dokąd"
+            title="Filtry destynacji"
+            caption="Jakie miejsce ma dopasować AI"
+            tone="blue"
+          >
+            <PillGroup title="Nastrój" caption="Jak chcesz się poczuć" pills={grouped.mood} selected={selected} toggle={toggle} />
+            <PillGroup title="Charakter miejsca" caption="Miasto, morze, zwiedzanie…" pills={grouped.destination} selected={selected} toggle={toggle} />
+            <PillGroup title="Pogoda i klimat" pills={grouped.climate} selected={selected} toggle={toggle} />
+          </FilterZone>
         )}
-        <PillGroup title="Pogoda i klimat" pills={grouped.climate} selected={selected} toggle={toggle} />
-        <PillGroup title="Lot" caption="Przesiadki i czas lotu" pills={grouped.flight} selected={selected} toggle={toggle} />
+
+        {/* NOCLEG — hotel */}
+        <FilterZone
+          icon={<Building2 className="h-4 w-4" />}
+          eyebrow="Nocleg"
+          title="Filtry hotelu"
+          caption="Rodzaj zakwaterowania i standard"
+          tone="green"
+        >
+          <PillGroup
+            title="Rodzaj zakwaterowania"
+            caption="Hotel, apartament, willa, hostel…"
+            pills={grouped.stay.filter((p) => LODGING_TYPES.includes(p.id))}
+            selected={selected} toggle={toggle}
+          />
+          <PillGroup
+            title="Standard i udogodnienia"
+            caption="Gwiazdki, opinie, spa, dla dzieci…"
+            pills={grouped.stay.filter((p) => !LODGING_TYPES.includes(p.id))}
+            selected={selected} toggle={toggle}
+          />
+        </FilterZone>
+
+        {/* LOT */}
+        <FilterZone
+          icon={<Plane className="h-4 w-4" />}
+          eyebrow="Lot"
+          title="Filtry lotu"
+          caption="Przesiadki i czas lotu"
+          tone="yellow"
+        >
+          <PillGroup title="" pills={grouped.flight} selected={selected} toggle={toggle} />
+        </FilterZone>
+
         {grouped.ai.length > 0 && (
-          <PillGroup title="Twoje filtry AI" pills={grouped.ai} selected={selected} toggle={toggle} />
+          <FilterZone
+            icon={<Sparkles className="h-4 w-4" />}
+            eyebrow="Twoje AI"
+            title="Własne filtry AI"
+            tone="pink"
+          >
+            <PillGroup title="" pills={grouped.ai} selected={selected} toggle={toggle} />
+          </FilterZone>
         )}
 
         {/* Add AI filter */}
@@ -292,11 +329,13 @@ function PillGroup({
 }) {
   if (pills.length === 0) return null;
   return (
-    <div className="mt-8 first:mt-0">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="font-display text-xl font-semibold">{title}</h2>
-        {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
-      </div>
+    <div className="mt-5 first:mt-0">
+      {title && (
+        <div className="mb-2.5 flex items-baseline justify-between">
+          <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-foreground/70">{title}</h3>
+          {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         {pills.map((v) => (
           <VibePill
@@ -309,6 +348,35 @@ function PillGroup({
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+function FilterZone({
+  icon, eyebrow, title, caption, tone, children,
+}: {
+  icon: React.ReactNode; eyebrow: string; title: string; caption?: string;
+  tone: "blue" | "green" | "yellow" | "pink"; children: React.ReactNode;
+}) {
+  const tones: Record<string, { border: string; bg: string; chip: string; bar: string }> = {
+    blue:   { border: "border-brand-blue/25",   bg: "bg-brand-blue-soft/25",   chip: "bg-brand-blue text-white",       bar: "bg-brand-blue" },
+    green:  { border: "border-brand-green/30",  bg: "bg-brand-green-soft/30",  chip: "bg-brand-green text-white",      bar: "bg-brand-green" },
+    yellow: { border: "border-brand-yellow/50", bg: "bg-brand-yellow-soft/40", chip: "bg-brand-yellow text-brand-yellow-ink", bar: "bg-brand-yellow" },
+    pink:   { border: "border-brand-pink/40",   bg: "bg-brand-pink-soft/40",   chip: "bg-brand-pink text-white",       bar: "bg-brand-pink" },
+  };
+  const t = tones[tone];
+  return (
+    <div className={`relative overflow-hidden rounded-3xl border ${t.border} ${t.bg} p-5 sm:p-6`}>
+      <span className={`absolute left-0 top-0 h-full w-1.5 ${t.bar}`} aria-hidden />
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className={`inline-flex items-center gap-1.5 rounded-full ${t.chip} px-3 py-1 text-[11px] font-bold uppercase tracking-wider shadow-pop`}>
+          {icon}
+          {eyebrow}
+        </span>
+        <h2 className="font-display text-2xl font-bold tracking-tight">{title}</h2>
+        {caption && <span className="text-sm text-muted-foreground">· {caption}</span>}
+      </div>
+      {children}
     </div>
   );
 }
