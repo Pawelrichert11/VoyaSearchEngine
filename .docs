@@ -1,0 +1,52 @@
+VoyaSearchEngine + fly-finder-vibes MVP
+
+Cel
+- UI z repo https://github.com/Pawelrichert11/fly-finder-vibes jest w folderze ./ui.
+- Backend bez AI zostaje w ./src i ./output.
+- UI czyta oferty z output/offers.json przez lokalny endpoint dev-servera: /api/voya/offers.
+
+Co jest podpiete
+- Lista wynikow: ui/src/routes/results.$id.tsx
+- Szczegol oferty: ui/src/routes/offer.$id.tsx
+- Mapowanie danych backend -> UI: ui/src/lib/voya-search.ts
+- Endpointy dev-servera: ui/vite.config.ts
+
+Endpointy MVP
+- GET /api/voya/offers
+  Czyta output/offers.json i zwraca rows/source/updatedAt.
+
+- POST /api/voya/search
+  Odpala ograniczone wyszukiwanie:
+  - maksymalnie 1-2 loty z examples/flights.sample.json,
+  - domyslnie 1 flight i 1 scroll Agody,
+  - build_offers.py filtruje wynik do max 3000 zl, powrot 2026-08-08, min 9 dni,
+  - zapisuje output/offers.json i output/offers.xlsx.
+
+Ochrona przed blokada Agody
+- Endpoint ma guard 30 minut w output/.ui-search-last.json.
+- Drugi klik w tym czasie zwroci 429 i nie odpali kolejnego scrape'a.
+- Nie ma omijania CAPTCHA, logowania ani checkoutu.
+
+Komendy
+- Najprostsze uruchomienie w przegladarce:
+  Dwuklik w START_VOYA_UI.bat
+  Otwiera http://127.0.0.1:5173/results/demo
+  Jesli dev server juz dziala, tylko otwiera przegladarke.
+
+- Instalacja UI:
+  npm run ui:install
+
+- Dev UI:
+  npm run ui:dev
+
+- Jednorazowe, reczne ograniczone pobranie Agody:
+  npm run agoda:limited
+  npm run build:mvp
+
+- Build UI:
+  npm run ui:build
+
+Uwagi
+- Jesli nie istnieje output/offers.json, UI pokazuje fallback demo i komunikat.
+- To jest MVP: filtry sa glownie po danych, ktore mamy w output/offers.json: cena, daty, dni, basen, typ hotelu/apartamentu, linki.
+- UI nadal moze miec stare teksty marketingowe z repo. Warstwa wyszukiwania pod spodem nie uzywa AI.

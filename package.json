@@ -1,0 +1,23 @@
+{
+  "name": "voya-search-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic travel search utilities: flight page checks, Agoda hotel scraping, pool text verification and Excel export. No AI components.",
+  "type": "commonjs",
+  "scripts": {
+    "agoda": "node src/agoda_search.js examples/flights.sample.json output/agoda_results.json",
+    "agoda:no-pool-filter": "node src/agoda_search.js examples/flights.sample.json output/agoda_results_no_pool_filter.json --no-pool-filter",
+    "agoda:limited": "node src/agoda_search.js examples/flights.sample.json output/ui_agoda_results.json --scrolls=1",
+    "verify:pools": "node src/verify_outdoor_pool.js output/offers.json output/offers_outdoor_pool_check.json",
+    "flight:check": "node src/check_flight_pages.js examples/flights.sample.json output/flight_page_checks.json",
+    "build": "python src/build_offers.py --hotel-results output/agoda_results.json --out-json output/offers.json --out-xlsx output/offers.xlsx --max-total 2500 --return-date 2026-08-08 --min-days 9",
+    "build:mvp": "python src/build_offers.py --hotel-results output/ui_agoda_results.json --out-json output/offers.json --out-xlsx output/offers.xlsx --max-total 3000 --return-date 2026-08-08 --min-days 9 --limit 50",
+    "ui:install": "npm --prefix ui install",
+    "ui:dev": "npm --prefix ui run dev",
+    "ui:build": "npm --prefix ui run build",
+    "photos": "node src/collect_hotel_photos.js output/offers.json output/photo_sheets"
+  },
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}

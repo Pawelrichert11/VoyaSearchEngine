@@ -1,0 +1,50 @@
+[
+  {
+    "airline": "Ryanair",
+    "origin": "Warszawa-Modlin",
+    "origin_iata": "WMI",
+    "dest_iata": "AGP",
+    "country": "Hiszpania",
+    "dest_name": "Malaga / Costa del Sol",
+    "stay_city": "Malaga",
+    "agoda_city_id": 12521,
+    "depart": "2026-07-31",
+    "return": "2026-08-08",
+    "days": 9,
+    "nights": 8,
+    "flight_price": 569.95,
+    "flight_link": "https://www.ryanair.com/pl/pl/trip/flights/select?adults=4&teens=0&children=0&infants=0&dateOut=2026-07-31&dateIn=2026-08-08&originIata=WMI&destinationIata=AGP&isConnectedFlight=false&isReturn=true&discount=0&promoCode="
+  },
+  {
+    "airline": "Ryanair",
+    "origin": "Warszawa-Modlin",
+    "origin_iata": "WMI",
+    "dest_iata": "VLC",
+    "country": "Hiszpania",
+    "dest_name": "Walencja",
+    "stay_city": "Valencia",
+    "agoda_city_id": 1623,
+    "depart": "2026-07-30",
+    "return": "2026-08-08",
+    "days": 10,
+    "nights": 9,
+    "flight_price": 778.67,
+    "flight_link": "https://www.ryanair.com/pl/pl/trip/flights/select?adults=4&teens=0&children=0&infants=0&dateOut=2026-07-30&dateIn=2026-08-08&originIata=WMI&destinationIata=VLC&isConnectedFlight=false&isReturn=true&discount=0&promoCode="
+  },
+  {
+    "airline": "Ryanair",
+    "origin": "Gdansk",
+    "origin_iata": "GDN",
+    "dest_iata": "ALC",
+    "country": "Hiszpania",
+    "dest_name": "Alicante / Costa Blanca",
+    "stay_city": "Alicante",
+    "agoda_city_id": 14186,
+    "depart": "2026-07-30",
+    "return": "2026-08-08",
+    "days": 10,
+    "nights": 9,
+    "flight_price": 659.96,
+    "flight_link": "https://www.ryanair.com/pl/pl/trip/flights/select?adults=4&teens=0&children=0&infants=0&dateOut=2026-07-30&dateIn=2026-08-08&originIata=GDN&destinationIata=ALC&isConnectedFlight=false&isReturn=true&discount=0&promoCode="
+  }
+]

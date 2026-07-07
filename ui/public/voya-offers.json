@@ -1,0 +1,5 @@
+{
+  "rows": [],
+  "source": "static-empty",
+  "message": "Brak wygenerowanych ofert. W dev UI endpoint /api/voya/offers czyta ../output/offers.json."
+}
