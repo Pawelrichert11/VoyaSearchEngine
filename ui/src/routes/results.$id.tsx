@@ -46,16 +46,7 @@ const rowTone: Record<VoyaResultRow["status"], string> = {
 
 const PAGE_SIZE = 5;
 const STATUS_FLOW: VoyaResultRow["status"][] = ["pending", "loved", "maybe", "no"];
-const LODGING_TYPES = [
-  "allinclusive",
-  "hotel",
-  "apartment",
-  "resort",
-  "hostel",
-  "glamping",
-  "bnb",
-  "boutique",
-];
+const LODGING_TYPES = ["hotel", "apartment", "resort", "hostel", "glamping", "bnb", "boutique"];
 
 type MapPoint = { x: number; y: number; airport: string };
 type WeatherOption = {
@@ -945,9 +936,15 @@ function SheetFiltersModal({
   const lodging = stayPills.filter((vibe) => LODGING_TYPES.includes(vibe.id));
   const amenities = stayPills.filter((vibe) => !LODGING_TYPES.includes(vibe.id));
   const toggleLocal = (id: string) =>
-    setNextSelected((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
+    setNextSelected((current) => {
+      const exclusiveGroup = ["direct", "onestop"].includes(id) ? ["direct", "onestop"] : null;
+      if (exclusiveGroup) {
+        return current.includes(id)
+          ? current.filter((item) => item !== id)
+          : [...current.filter((item) => !exclusiveGroup.includes(item)), id];
+      }
+      return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+    });
   const togglePlace = (place: string) =>
     setNextPlaces((current) =>
       current.includes(place) ? current.filter((item) => item !== place) : [...current, place],
@@ -1043,13 +1040,13 @@ function SheetFiltersModal({
 
         <div className="mt-5 space-y-4 rounded-2xl bg-brand-green-soft/30 p-4">
           <FilterPillGroup
-            title="Rodzaj zakwaterowania"
+            title="Zakwaterowanie"
             pills={lodging}
             selected={nextSelected}
             toggle={toggleLocal}
           />
           <FilterPillGroup
-            title="Standard i udogodnienia"
+            title="Udogodnienia"
             pills={amenities}
             selected={nextSelected}
             toggle={toggleLocal}

@@ -32,7 +32,6 @@ export const VIBES: Vibe[] = [
   { id: "aircon", emoji: "❄️", label: "Klimatyzacja", tone: "blue", category: "stay" },
   { id: "parking", emoji: "🅿️", label: "Parking", tone: "neutral", category: "stay" },
   { id: "gym", emoji: "🏋️", label: "Siłownia", tone: "green", category: "stay" },
-  { id: "adults", emoji: "🍸", label: "Tylko dla dorosłych", tone: "pink", category: "stay" },
   {
     id: "airporttransfer",
     emoji: "🚐",

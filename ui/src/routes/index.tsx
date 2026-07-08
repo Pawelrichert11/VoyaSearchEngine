@@ -5,6 +5,8 @@ import {
   Building2,
   CalendarDays,
   Check,
+  ChevronDown,
+  ChevronUp,
   Compass,
   Lock,
   MapPin,
@@ -27,16 +29,7 @@ export const Route = createFileRoute("/")({
   component: SearchHome,
 });
 
-const LODGING_TYPES = [
-  "allinclusive",
-  "hotel",
-  "apartment",
-  "resort",
-  "hostel",
-  "glamping",
-  "bnb",
-  "boutique",
-];
+const LODGING_TYPES = ["hotel", "apartment", "resort", "hostel", "glamping", "bnb", "boutique"];
 
 const FLEX_MONTHS = [
   { label: "Marzec 2026", value: "2026-03" },
@@ -49,6 +42,7 @@ const FLEX_MONTHS = [
 ];
 
 type SearchMode = "chat" | "filters";
+type FilterTab = "destination" | "hotel" | "flight";
 type DestinationMode = "vibe" | "specific";
 type DestinationCountry = { code: string; flag: string; name: string; cities: string[] };
 type DestinationSelection = {
@@ -178,6 +172,7 @@ const monthLabel = (year: number, monthIndex: number) => `${MONTH_NAMES[monthInd
 
 function SearchHome() {
   const [searchMode, setSearchMode] = useState<SearchMode>("chat");
+  const [filterTab, setFilterTab] = useState<FilterTab | null>("destination");
   const [tripPrompt, setTripPrompt] = useState("");
   const [selected, setSelected] = useState<string[]>(["pool", "party", "sun", "direct"]);
   const [aiOpen, setAiOpen] = useState(false);
@@ -238,7 +233,15 @@ function SearchHome() {
       setSportsOpen(true);
       return;
     }
-    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+    const exclusiveGroup = ["direct", "onestop"].includes(id) ? ["direct", "onestop"] : null;
+    setSelected((s) => {
+      if (exclusiveGroup) {
+        return s.includes(id)
+          ? s.filter((x) => x !== id)
+          : [...s.filter((x) => !exclusiveGroup.includes(x)), id];
+      }
+      return s.includes(id) ? s.filter((x) => x !== id) : [...s, id];
+    });
   };
 
   const addCustom = () => {
@@ -264,7 +267,7 @@ function SearchHome() {
       <TopBar />
 
       {/* Hero */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-visible">
         <RotatingHero />
         <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-10 sm:px-6 sm:pt-16">
           <div className="mx-auto max-w-4xl text-center">
@@ -311,206 +314,66 @@ function SearchHome() {
                   Filtry
                 </button>
               </div>
-              {searchMode === "chat" ? (
-                <TripChatBox prompt={tripPrompt} setPrompt={setTripPrompt} />
-              ) : (
-                <div className="rounded-3xl border border-border bg-background p-3">
-                  <div className="mb-3 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <Search className="h-3.5 w-3.5" />
-                    Filtry
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
-                    <Field
-                      icon={<MapPin className="h-4 w-4 text-brand-blue" />}
-                      label="Skąd"
-                      value={`${fromAirport.name} (${fromAirport.code})`}
-                      col="sm:col-span-3"
-                      onClick={() => setFromOpen(true)}
-                    />
-                    <Field
-                      icon={<ArrowRight className="h-4 w-4 text-brand-green" />}
-                      label="Dokąd"
-                      value={toLabel}
-                      col="sm:col-span-4"
-                      onClick={() => setToOpen(true)}
-                    />
-                    <Field
-                      icon={<CalendarDays className="h-4 w-4 text-brand-yellow-ink" />}
-                      label="Kiedy"
-                      value={whenLabel}
-                      col="sm:col-span-3"
-                      onClick={() => setWhenOpen(true)}
-                    />
-                    <Field
-                      icon={<Users className="h-4 w-4 text-brand-pink" />}
-                      label="Kto"
-                      value={guestsLabel}
-                      col="sm:col-span-2"
-                      onClick={() => setGuestsOpen(true)}
-                    />
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>
-                        {dateMode === "flex"
-                          ? `Elastyczne daty ±${flexRange} dni`
-                          : "Dokładne daty"}
-                      </span>
-                      <span className="text-border">·</span>
-                      <span>
-                        {selected.includes("direct")
-                          ? "Bez przesiadek"
-                          : "Bezpośrednie lub z 1 przesiadką"}
-                      </span>
+              <div className="min-h-[108px]">
+                {searchMode === "chat" ? (
+                  <TripChatBox prompt={tripPrompt} setPrompt={setTripPrompt} />
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                      <Field
+                        icon={<MapPin className="h-4 w-4 text-brand-blue" />}
+                        label="Skąd"
+                        value={`${fromAirport.name} (${fromAirport.code})`}
+                        col="sm:col-span-3"
+                        onClick={() => setFromOpen(true)}
+                      />
+                      <Field
+                        icon={<ArrowRight className="h-4 w-4 text-brand-green" />}
+                        label="Dokąd"
+                        value={toLabel}
+                        col="sm:col-span-4"
+                        onClick={() => setToOpen(true)}
+                      />
+                      <Field
+                        icon={<CalendarDays className="h-4 w-4 text-brand-yellow-ink" />}
+                        label="Kiedy"
+                        value={whenLabel}
+                        col="sm:col-span-3"
+                        onClick={() => setWhenOpen(true)}
+                      />
+                      <Field
+                        icon={<Users className="h-4 w-4 text-brand-pink" />}
+                        label="Kto"
+                        value={guestsLabel}
+                        col="sm:col-span-2"
+                        onClick={() => setGuestsOpen(true)}
+                      />
                     </div>
-                    <Link
-                      to="/results/$id"
-                      params={{ id: "demo" }}
-                      className="inline-flex items-center rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-pop transition-transform hover:-translate-y-0.5"
-                    >
-                      Wyszukaj
-                    </Link>
+                    <FilterTabsPanel
+                      activeTab={filterTab}
+                      onTabClick={(tab) =>
+                        setFilterTab((current) => (current === tab ? null : tab))
+                      }
+                      grouped={grouped}
+                      hotelStars={hotelStars}
+                      reviewScore={reviewScore}
+                      selected={selected}
+                      selectedSports={selectedSports}
+                      setHotelStars={setHotelStars}
+                      setReviewScore={setReviewScore}
+                      setSportsOpen={setSportsOpen}
+                      toMode={toMode}
+                      toggle={toggle}
+                    />
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Vibe filters */}
       <section className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-6">
-        {/* DOKĄD — destynacja */}
-        {toMode === "vibe" && (
-          <FilterZone
-            icon={<Compass className="h-4 w-4" />}
-            eyebrow="Dokąd"
-            title="Destynacja"
-            caption="Jakie miejsce ma dopasować AI"
-            tone="blue"
-          >
-            <PillGroup
-              title="Charakter miejsca"
-              caption="Miasto, morze, kultura, aktywnie…"
-              pills={[...grouped.destination, ...grouped.mood]}
-              selected={selected}
-              toggle={toggle}
-            />
-            {selectedSports.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
-                <span className="font-semibold text-muted-foreground">Sporty:</span>
-                {selectedSports.map((sportId) => {
-                  const sport = SPORT_OPTIONS.find((option) => option.id === sportId);
-                  if (!sport) return null;
-                  return (
-                    <button
-                      key={sport.id}
-                      type="button"
-                      onClick={() => setSportsOpen(true)}
-                      className="rounded-full bg-brand-green-soft px-3 py-1 font-medium text-brand-green-ink"
-                    >
-                      {sport.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <PillGroup
-              title="Pogoda i klimat"
-              pills={grouped.climate}
-              selected={selected}
-              toggle={toggle}
-            />
-          </FilterZone>
-        )}
-
-        {/* NOCLEG — hotel */}
-        <FilterZone
-          icon={<Building2 className="h-4 w-4" />}
-          eyebrow="Nocleg"
-          title="Hotel"
-          caption="Rodzaj zakwaterowania i standard"
-          tone="green"
-        >
-          <PillGroup
-            title="Rodzaj zakwaterowania"
-            caption="Hotel, apartament, resort, hostel…"
-            pills={grouped.stay.filter((p) => LODGING_TYPES.includes(p.id))}
-            selected={selected}
-            toggle={toggle}
-          />
-          <PillGroup
-            title="Standard i udogodnienia"
-            caption="Położenie, śniadanie, spa…"
-            pills={grouped.stay.filter((p) => !LODGING_TYPES.includes(p.id))}
-            selected={selected}
-            toggle={toggle}
-          />
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <NumberThresholdPicker
-              title="Liczba gwiazdek"
-              value={hotelStars}
-              suffix="gwiazdek+"
-              min={1}
-              max={5}
-              onChange={setHotelStars}
-            />
-            <NumberThresholdPicker
-              title="Opinie"
-              value={reviewScore}
-              suffix="/10+"
-              min={1}
-              max={10}
-              onChange={setReviewScore}
-            />
-          </div>
-        </FilterZone>
-
-        {/* LOT */}
-        <FilterZone
-          icon={<Plane className="h-4 w-4" />}
-          eyebrow="Lot"
-          title="Filtry lotu"
-          caption="Przesiadki i czas lotu"
-          tone="yellow"
-        >
-          <PillGroup title="" pills={grouped.flight} selected={selected} toggle={toggle} />
-        </FilterZone>
-
-        {grouped.ai.length > 0 && (
-          <FilterZone
-            icon={<Sparkles className="h-4 w-4" />}
-            eyebrow="Twoje AI"
-            title="Własne filtry AI"
-            tone="pink"
-          >
-            <PillGroup title="" pills={grouped.ai} selected={selected} toggle={toggle} />
-          </FilterZone>
-        )}
-
-        {/* Add AI filter */}
-        <div className="mt-8 rounded-3xl border border-dashed border-border bg-muted/60 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted-foreground text-white shadow-pop">
-                <Lock className="h-5 w-5" />
-              </span>
-              <div>
-                <div className="font-display text-lg font-semibold">Dodaj własny filtr AI</div>
-                <div className="text-sm text-muted-foreground">
-                  Funkcja zablokowana. Własne filtry AI będą dostępne po odblokowaniu konta.
-                </div>
-              </div>
-            </div>
-            <button
-              disabled
-              className="inline-flex cursor-not-allowed items-center gap-2 rounded-full bg-muted-foreground px-5 py-2.5 text-sm font-semibold text-white opacity-70"
-            >
-              <Lock className="h-4 w-4" /> Zablokowane
-            </button>
-          </div>
-        </div>
-
         <RecommendedOffers />
       </section>
 
@@ -600,6 +463,7 @@ function SearchHome() {
           onSave={(mode, destinations) => {
             setToMode(mode);
             setToDestinations(mode === "vibe" ? [] : destinations);
+            if (mode !== "vibe" && filterTab === "destination") setFilterTab("hotel");
             setToOpen(false);
           }}
         />
@@ -721,42 +585,249 @@ function TripChatBox({
   );
 }
 
-function PillGroup({
-  title,
-  caption,
+function FilterTabsPanel({
+  activeTab,
+  onTabClick,
+  grouped,
+  hotelStars,
+  reviewScore,
+  selected,
+  selectedSports,
+  setHotelStars,
+  setReviewScore,
+  setSportsOpen,
+  toMode,
+  toggle,
+}: {
+  activeTab: FilterTab | null;
+  onTabClick: (tab: FilterTab) => void;
+  grouped: Record<string, Vibe[]>;
+  hotelStars: number | null;
+  reviewScore: number | null;
+  selected: string[];
+  selectedSports: string[];
+  setHotelStars: (value: number | null) => void;
+  setReviewScore: (value: number | null) => void;
+  setSportsOpen: (value: boolean) => void;
+  toMode: DestinationMode;
+  toggle: (id: string) => void;
+}) {
+  const destinationPills = [...grouped.destination, ...grouped.mood, ...grouped.climate];
+  const lodgingPills = grouped.stay.filter((p) => LODGING_TYPES.includes(p.id));
+  const standardPills = grouped.stay.filter((p) => !LODGING_TYPES.includes(p.id));
+  const flightPills = grouped.flight;
+  const showDestinationTab = toMode === "vibe";
+  const openTab = showDestinationTab || activeTab !== "destination" ? activeTab : null;
+  const activeLabel =
+    openTab === "destination" ? "Destynacja" : openTab === "hotel" ? "Hotel" : "Lot";
+
+  return (
+    <div className="relative z-30">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {showDestinationTab && (
+            <FilterSegmentButton
+              active={activeTab === "destination"}
+              icon={<Compass className="h-3.5 w-3.5" />}
+              label="Destynacja"
+              onClick={() => onTabClick("destination")}
+            />
+          )}
+          <FilterSegmentButton
+            active={activeTab === "hotel"}
+            icon={<Building2 className="h-3.5 w-3.5" />}
+            label="Hotel"
+            onClick={() => onTabClick("hotel")}
+          />
+          <FilterSegmentButton
+            active={activeTab === "flight"}
+            icon={<Plane className="h-3.5 w-3.5" />}
+            label="Lot"
+            onClick={() => onTabClick("flight")}
+          />
+          <FilterSegmentButton
+            disabled
+            icon={<Lock className="h-3.5 w-3.5" />}
+            label="Własny filtr AI"
+          />
+        </div>
+        <Link
+          to="/results/$id"
+          params={{ id: "demo" }}
+          className="inline-flex h-9 items-center rounded-full bg-foreground px-5 text-xs font-semibold text-background shadow-pop transition-transform hover:-translate-y-0.5"
+        >
+          Wyszukaj
+        </Link>
+      </div>
+
+      {openTab && (
+        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 rounded-[1.5rem] border border-border bg-card px-4 py-3 shadow-pop">
+          <div className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            {activeLabel}
+          </div>
+          <div>
+            {openTab === "destination" && (
+              <div className="space-y-3">
+                {toMode === "vibe" ? (
+                  <>
+                    <FilterChipCloud pills={destinationPills} selected={selected} toggle={toggle} />
+                    {selectedSports.length > 0 && (
+                      <div className="grid gap-1.5 md:grid-cols-[130px_1fr] md:items-center">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Sporty
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedSports.map((sportId) => {
+                            const sport = SPORT_OPTIONS.find((option) => option.id === sportId);
+                            if (!sport) return null;
+                            return (
+                              <button
+                                key={sport.id}
+                                type="button"
+                                onClick={() => setSportsOpen(true)}
+                                className="rounded-full bg-brand-green-soft px-3 py-1 font-medium text-brand-green-ink"
+                              >
+                                {sport.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="px-1 py-2 text-xs text-muted-foreground">
+                    Masz wybrane konkretne miejsce. Zmień je w polu “Dokąd” w górnym formularzu.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {openTab === "hotel" && (
+              <div className="space-y-2">
+                <LabeledFilterChipCloud
+                  label="Zakwaterowanie"
+                  pills={lodgingPills}
+                  selected={selected}
+                  toggle={toggle}
+                />
+                <LabeledFilterChipCloud
+                  label="Udogodnienia"
+                  pills={standardPills}
+                  selected={selected}
+                  toggle={toggle}
+                />
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  <NumberThresholdPicker
+                    title="Liczba gwiazdek"
+                    value={hotelStars}
+                    suffix="gwiazdek+"
+                    min={1}
+                    max={5}
+                    onChange={setHotelStars}
+                  />
+                  <NumberThresholdPicker
+                    title="Opinie"
+                    value={reviewScore}
+                    suffix="/10+"
+                    min={1}
+                    max={10}
+                    onChange={setReviewScore}
+                  />
+                </div>
+              </div>
+            )}
+
+            {openTab === "flight" && (
+              <FilterChipCloud pills={flightPills} selected={selected} toggle={toggle} />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterSegmentButton({
+  active,
+  disabled,
+  icon,
+  label,
+  onClick,
+}: {
+  active?: boolean;
+  disabled?: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-expanded={active}
+      className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-colors ${
+        disabled
+          ? "cursor-not-allowed bg-muted text-muted-foreground opacity-60"
+          : active
+            ? "bg-foreground text-background shadow-soft"
+            : "bg-muted text-foreground hover:bg-muted/70"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+      {!disabled &&
+        (active ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />)}
+    </button>
+  );
+}
+
+function FilterChipCloud({
   pills,
   selected,
   toggle,
 }: {
-  title: string;
-  caption?: string;
   pills: Vibe[];
   selected: string[];
   toggle: (id: string) => void;
 }) {
   if (pills.length === 0) return null;
   return (
-    <div className="mt-5 first:mt-0">
-      {title && (
-        <div className="mb-2.5 flex items-baseline justify-between">
-          <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-foreground/70">
-            {title}
-          </h3>
-          {caption && <span className="text-xs text-muted-foreground">{caption}</span>}
-        </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {pills.map((v) => (
-          <VibePill
-            key={v.id}
-            emoji={v.emoji}
-            label={v.label}
-            tone={v.tone}
-            active={selected.includes(v.id)}
-            onClick={() => toggle(v.id)}
-          />
-        ))}
+    <div className="flex flex-wrap gap-2">
+      {pills.map((v) => (
+        <VibePill
+          key={v.id}
+          emoji={v.emoji}
+          label={v.label}
+          tone={v.tone}
+          active={selected.includes(v.id)}
+          onClick={() => toggle(v.id)}
+          size="sm"
+        />
+      ))}
+    </div>
+  );
+}
+
+function LabeledFilterChipCloud({
+  label,
+  pills,
+  selected,
+  toggle,
+}: {
+  label: string;
+  pills: Vibe[];
+  selected: string[];
+  toggle: (id: string) => void;
+}) {
+  if (pills.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        {label}
       </div>
+      <FilterChipCloud pills={pills} selected={selected} toggle={toggle} />
     </div>
   );
 }
@@ -794,17 +865,17 @@ function NumberThresholdPicker({
             onChange(value === null || value <= min ? null : Math.max(min, current - 1))
           }
           disabled={value === null}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-35"
+          className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-35"
           aria-label={`Zmniejsz: ${title}`}
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
-        <span className="w-12 text-center text-sm font-semibold">{value ?? "-"}</span>
+        <span className="w-9 text-center text-sm font-semibold">{value ?? "-"}</span>
         <button
           type="button"
           onClick={() => onChange(Math.min(max, value === null ? min : current + 1))}
           disabled={value !== null && value >= max}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-35"
+          className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-35"
           aria-label={`Zwiększ: ${title}`}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -893,66 +964,6 @@ function RecommendedOffers() {
           </Link>
         ))}
       </div>
-    </div>
-  );
-}
-
-function FilterZone({
-  icon,
-  eyebrow,
-  title,
-  caption,
-  tone,
-  children,
-}: {
-  icon: React.ReactNode;
-  eyebrow: string;
-  title: string;
-  caption?: string;
-  tone: "blue" | "green" | "yellow" | "pink";
-  children: React.ReactNode;
-}) {
-  const tones: Record<string, { border: string; bg: string; chip: string; bar: string }> = {
-    blue: {
-      border: "border-brand-blue/25",
-      bg: "bg-brand-blue-soft/25",
-      chip: "bg-brand-blue text-white",
-      bar: "bg-brand-blue",
-    },
-    green: {
-      border: "border-brand-green/30",
-      bg: "bg-brand-green-soft/30",
-      chip: "bg-brand-green text-white",
-      bar: "bg-brand-green",
-    },
-    yellow: {
-      border: "border-brand-yellow/50",
-      bg: "bg-brand-yellow-soft/40",
-      chip: "bg-brand-yellow text-brand-yellow-ink",
-      bar: "bg-brand-yellow",
-    },
-    pink: {
-      border: "border-brand-pink/40",
-      bg: "bg-brand-pink-soft/40",
-      chip: "bg-brand-pink text-white",
-      bar: "bg-brand-pink",
-    },
-  };
-  const t = tones[tone];
-  return (
-    <div className={`relative overflow-hidden rounded-3xl border ${t.border} ${t.bg} p-5 sm:p-6`}>
-      <span className={`absolute left-0 top-0 h-full w-1.5 ${t.bar}`} aria-hidden />
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full ${t.chip} px-3 py-1 text-[11px] font-bold uppercase tracking-wider shadow-pop`}
-        >
-          {icon}
-          {eyebrow}
-        </span>
-        <h2 className="font-display text-2xl font-bold tracking-tight">{title}</h2>
-        {caption && <span className="text-sm text-muted-foreground">· {caption}</span>}
-      </div>
-      {children}
     </div>
   );
 }
