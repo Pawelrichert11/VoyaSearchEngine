@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Users, Sparkles } from "lucide-react";
+import { Users } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
 import { DEMO_SHEETS } from "@/lib/voya-data";
 
@@ -14,9 +14,21 @@ export const Route = createFileRoute("/sheets")({
 });
 
 const statusMeta = {
-  live: { label: "na żywo", tone: "bg-brand-green-soft text-brand-green-ink", dot: "bg-brand-green animate-pulse" },
-  planning: { label: "planowanie", tone: "bg-brand-yellow-soft text-brand-yellow-ink", dot: "bg-brand-yellow" },
-  booked: { label: "zarezerwowane", tone: "bg-brand-blue-soft text-brand-blue-ink", dot: "bg-brand-blue" },
+  live: {
+    label: "na żywo",
+    tone: "bg-brand-green-soft text-brand-green-ink",
+    dot: "bg-brand-green animate-pulse",
+  },
+  planning: {
+    label: "planowanie",
+    tone: "bg-brand-yellow-soft text-brand-yellow-ink",
+    dot: "bg-brand-yellow",
+  },
+  booked: {
+    label: "zarezerwowane",
+    tone: "bg-brand-blue-soft text-brand-blue-ink",
+    dot: "bg-brand-blue",
+  },
 } as const;
 
 function SheetsList() {
@@ -31,12 +43,6 @@ function SheetsList() {
               Wspólne plany wyjazdów. Kliknij, aby otworzyć i edytować z ekipą.
             </p>
           </div>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-pop"
-          >
-            <Plus className="h-4 w-4" /> Nowy arkusz
-          </Link>
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -50,15 +56,25 @@ function SheetsList() {
                 className="group relative overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-transform hover:-translate-y-1 hover:shadow-pop"
               >
                 <div className="relative h-36 overflow-hidden">
-                  <img src={s.cover} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <img
+                    src={s.cover}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/10 to-transparent" />
-                  <span className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${meta.tone}`}>
+                  <span
+                    className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${meta.tone}`}
+                  >
                     <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} /> {meta.label}
                   </span>
                   <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-card text-xl shadow-pop">{s.emoji}</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-card text-xl shadow-pop">
+                      {s.emoji}
+                    </span>
                     <div className="text-background">
-                      <div className="font-display text-base font-semibold leading-tight drop-shadow">{s.title}</div>
+                      <div className="font-display text-base font-semibold leading-tight drop-shadow">
+                        {s.title}
+                      </div>
                       <div className="text-[11px] opacity-90">{s.subtitle}</div>
                     </div>
                   </div>
@@ -66,31 +82,24 @@ function SheetsList() {
                 <div className="p-4">
                   <div className="flex flex-wrap gap-1">
                     {s.vibes.map((v, i) => (
-                      <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-xs">{v}</span>
+                      <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        {v}
+                      </span>
                     ))}
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                     <span>{s.dates}</span>
-                    <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {s.collaborators} · {s.rows} ofert</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="h-3 w-3" /> {s.collaborators} · {s.rows} ofert
+                    </span>
                   </div>
-                  <div className="mt-2 text-[11px] text-muted-foreground">Aktualizacja: {s.updated}</div>
+                  <div className="mt-2 text-[11px] text-muted-foreground">
+                    Aktualizacja: {s.updated}
+                  </div>
                 </div>
               </Link>
             );
           })}
-
-          <Link
-            to="/"
-            className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-brand-blue/40 bg-brand-blue-soft/30 p-6 text-center transition-colors hover:bg-brand-blue-soft/60"
-          >
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-blue text-2xl text-white shadow-pop">
-              <Sparkles className="h-6 w-6" />
-            </span>
-            <div className="font-display text-lg font-semibold">Nowy plan z AI</div>
-            <div className="max-w-[220px] text-xs text-muted-foreground">
-              Opisz wyjazd, a AI ułoży arkusz z lotami i hotelami
-            </div>
-          </Link>
         </div>
       </div>
     </div>

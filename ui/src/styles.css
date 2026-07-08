@@ -191,11 +191,9 @@
   font-size: 0.875rem;
   font-weight: 500;
   border: 1px solid transparent;
-  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  transition: box-shadow 120ms ease, background 120ms ease, filter 120ms ease;
   cursor: pointer;
   user-select: none;
-  &:hover { transform: translateY(-1px); }
-  &:active { transform: translateY(0); }
 }
 
 @utility bg-hero-gradient {

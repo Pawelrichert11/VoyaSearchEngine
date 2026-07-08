@@ -7,6 +7,7 @@ export function TopBar() {
     { to: "/", label: "Szukaj" },
     { to: "/sheets", label: "Moje arkusze" },
     { to: "/alerts", label: "Alerty" },
+    { to: "/guide", label: "Przewodnik" },
   ];
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
@@ -22,7 +23,8 @@ export function TopBar() {
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
           {nav.map((n) => {
-            const active = n.to === "/" ? path === "/" : path.startsWith(n.to.split("/").slice(0, 2).join("/"));
+            const active =
+              n.to === "/" ? path === "/" : path.startsWith(n.to.split("/").slice(0, 2).join("/"));
             return (
               <Link
                 key={n.to}

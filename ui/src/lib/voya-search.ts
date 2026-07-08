@@ -81,13 +81,38 @@ const FALLBACK_ROWS: VoyaResultRow[] = DEMO_RESULTS.map((row) => ({
 }));
 
 const COUNTRY_FLAGS: Record<string, string> = {
+  ES: "🇪🇸",
   Hiszpania: "🇪🇸",
   Spain: "🇪🇸",
+  PT: "🇵🇹",
   Portugalia: "🇵🇹",
+  IT: "🇮🇹",
+  Włochy: "🇮🇹",
   Wlochy: "🇮🇹",
+  GR: "🇬🇷",
   Grecja: "🇬🇷",
+  HR: "🇭🇷",
+  Chorwacja: "🇭🇷",
+  BG: "🇧🇬",
   Bulgaria: "🇧🇬",
+  CY: "🇨🇾",
   Cypr: "🇨🇾",
+  MA: "🇲🇦",
+  Maroko: "🇲🇦",
+  TR: "🇹🇷",
+  Turcja: "🇹🇷",
+};
+
+const COUNTRY_NAMES: Record<string, string> = {
+  ES: "Hiszpania",
+  PT: "Portugalia",
+  IT: "Włochy",
+  GR: "Grecja",
+  HR: "Chorwacja",
+  BG: "Bułgaria",
+  CY: "Cypr",
+  MA: "Maroko",
+  TR: "Turcja",
 };
 
 function numberValue(value: unknown, fallback = 0): number {
@@ -129,7 +154,8 @@ function matchScore(row: BackendOffer): number {
 
 export function toVoyaResult(row: BackendOffer, index: number): VoyaResultRow {
   const destination = row.stay_city || row.dest_name || row.dest_iata || "Oferta";
-  const country = row.country || "";
+  const rawCountry = row.country || "";
+  const country = COUNTRY_NAMES[rawCountry] ?? rawCountry;
   const total = numberValue(row.total);
   const pool: VoyaResultRow["pool"] =
     row.has_outdoor_pool === true ? "yes" : row.has_outdoor_pool === false ? "no" : "unknown";
@@ -143,7 +169,7 @@ export function toVoyaResult(row: BackendOffer, index: number): VoyaResultRow {
   return {
     id: stableId(row, index),
     destination,
-    flag: COUNTRY_FLAGS[country] ?? "🌍",
+    flag: COUNTRY_FLAGS[rawCountry] ?? COUNTRY_FLAGS[country] ?? "🌍",
     hotel: row.hotel_name || "Hotel / apartament",
     hotelStars: Math.max(0, Math.round(numberValue(row.stars))),
     flight: `${row.origin_iata || row.origin || "?"} → ${row.dest_iata || row.dest_name || "?"}`,
@@ -185,7 +211,10 @@ async function readJson<T>(url: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function fetchVoyaOffers(): Promise<{ rows: VoyaResultRow[]; payload: OffersPayload }> {
+export async function fetchVoyaOffers(): Promise<{
+  rows: VoyaResultRow[];
+  payload: OffersPayload;
+}> {
   try {
     const payload = await readJson<OffersPayload>("/api/voya/offers");
     const rows = (payload.rows || []).map(toVoyaResult);

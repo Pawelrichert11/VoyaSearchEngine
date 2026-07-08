@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SheetsRouteImport } from './routes/sheets'
+import { Route as GuideRouteImport } from './routes/guide'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultsIdRouteImport } from './routes/results.$id'
@@ -18,6 +19,11 @@ import { Route as OfferIdRouteImport } from './routes/offer.$id'
 const SheetsRoute = SheetsRouteImport.update({
   id: '/sheets',
   path: '/sheets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideRoute = GuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AlertsRoute = AlertsRouteImport.update({
@@ -44,6 +50,7 @@ const OfferIdRoute = OfferIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
+  '/guide': typeof GuideRoute
   '/sheets': typeof SheetsRoute
   '/offer/$id': typeof OfferIdRoute
   '/results/$id': typeof ResultsIdRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
+  '/guide': typeof GuideRoute
   '/sheets': typeof SheetsRoute
   '/offer/$id': typeof OfferIdRoute
   '/results/$id': typeof ResultsIdRoute
@@ -59,21 +67,31 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
+  '/guide': typeof GuideRoute
   '/sheets': typeof SheetsRoute
   '/offer/$id': typeof OfferIdRoute
   '/results/$id': typeof ResultsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/alerts' | '/sheets' | '/offer/$id' | '/results/$id'
+  fullPaths:
+    '/' | '/alerts' | '/guide' | '/sheets' | '/offer/$id' | '/results/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/alerts' | '/sheets' | '/offer/$id' | '/results/$id'
-  id: '__root__' | '/' | '/alerts' | '/sheets' | '/offer/$id' | '/results/$id'
+  to: '/' | '/alerts' | '/guide' | '/sheets' | '/offer/$id' | '/results/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/alerts'
+    | '/guide'
+    | '/sheets'
+    | '/offer/$id'
+    | '/results/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlertsRoute: typeof AlertsRoute
+  GuideRoute: typeof GuideRoute
   SheetsRoute: typeof SheetsRoute
   OfferIdRoute: typeof OfferIdRoute
   ResultsIdRoute: typeof ResultsIdRoute
@@ -86,6 +104,13 @@ declare module '@tanstack/react-router' {
       path: '/sheets'
       fullPath: '/sheets'
       preLoaderRoute: typeof SheetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide': {
+      id: '/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof GuideRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/alerts': {
@@ -122,6 +147,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlertsRoute: AlertsRoute,
+  GuideRoute: GuideRoute,
   SheetsRoute: SheetsRoute,
   OfferIdRoute: OfferIdRoute,
   ResultsIdRoute: ResultsIdRoute,
