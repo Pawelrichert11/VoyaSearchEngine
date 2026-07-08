@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
+import { CountryFlag } from "@/components/voya/CountryFlag";
 import { VibePill } from "@/components/voya/VibePill";
 import { VIBES, type Vibe } from "@/lib/voya-data";
 import { fetchVoyaOffers, type VoyaResultRow } from "@/lib/voya-search";
@@ -337,12 +338,14 @@ function ResultsSheet() {
                               className="flex items-center gap-3"
                             >
                               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-xl">
-                                {row.flag}
+                                <CountryFlag
+                                  flag={row.flag}
+                                  label={row.country || row.destination}
+                                  className="h-6 w-8"
+                                />
                               </span>
                               <div>
-                                <div className="font-semibold">
-                                  {row.flag} {row.destination}
-                                </div>
+                                <div className="font-semibold">{row.destination}</div>
                                 <div className="text-xs text-muted-foreground">
                                   {row.country || row.destIata}
                                 </div>
@@ -712,7 +715,11 @@ function FlightMap({
                     style={{ left: `${point.x}%`, top: `${point.y}%` }}
                   >
                     <div className="flex items-center gap-1.5 font-semibold">
-                      <span>{row.flag}</span>
+                      <CountryFlag
+                        flag={row.flag}
+                        label={row.country || row.destination}
+                        className="h-3.5 w-5"
+                      />
                       <span>{point.airport}</span>
                     </div>
                     <div className="whitespace-nowrap text-[10px] opacity-80">
@@ -737,7 +744,14 @@ function FlightMap({
               Zaznaczona oferta
             </div>
             <div className="mt-1 font-display text-lg font-semibold">
-              {selected.flag} {selected.destination}
+              <span className="inline-flex items-center gap-2">
+                <CountryFlag
+                  flag={selected.flag}
+                  label={selected.country || selected.destination}
+                  className="h-4 w-6"
+                />
+                {selected.destination}
+              </span>
             </div>
             <div className="mt-1 text-xs text-muted-foreground">{selected.dates}</div>
             <div className="mt-3 space-y-1 text-sm">
@@ -774,7 +788,14 @@ function FlightMap({
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-semibold">
-                    {row.flag} {row.destination}
+                    <span className="inline-flex items-center gap-2">
+                      <CountryFlag
+                        flag={row.flag}
+                        label={row.country || row.destination}
+                        className="h-4 w-6"
+                      />
+                      {row.destination}
+                    </span>
                   </span>
                   <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-semibold">
                     {point.airport}
@@ -995,22 +1016,27 @@ function SheetFiltersModal({
               Zmień miejsce
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {["🇪🇸 Hiszpania", "🇵🇹 Portugalia", "🇬🇷 Grecja", "🇭🇷 Chorwacja", "🇮🇹 Włochy"].map(
-                (place) => (
-                  <button
-                    key={place}
-                    type="button"
-                    onClick={() => togglePlace(place)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                      nextPlaces.includes(place)
-                        ? "bg-brand-blue text-white shadow-pop"
-                        : "bg-muted hover:bg-brand-blue-soft"
-                    }`}
-                  >
-                    {place}
-                  </button>
-                ),
-              )}
+              {[
+                { code: "ES", label: "Hiszpania" },
+                { code: "PT", label: "Portugalia" },
+                { code: "GR", label: "Grecja" },
+                { code: "HR", label: "Chorwacja" },
+                { code: "IT", label: "Włochy" },
+              ].map((place) => (
+                <button
+                  key={place.code}
+                  type="button"
+                  onClick={() => togglePlace(place.label)}
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    nextPlaces.includes(place.label)
+                      ? "bg-brand-blue text-white shadow-pop"
+                      : "bg-muted hover:bg-brand-blue-soft"
+                  }`}
+                >
+                  <CountryFlag code={place.code} label={place.label} />
+                  {place.label}
+                </button>
+              ))}
             </div>
           </div>
         )}

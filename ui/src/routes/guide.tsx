@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Clock, Compass, MapPin, Star } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
+import { CountryFlag } from "@/components/voya/CountryFlag";
 
 export const Route = createFileRoute("/guide")({
   component: GuidePage,
@@ -371,7 +372,7 @@ function GuidePage() {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 font-display text-lg font-semibold">
-                        <span>{city.flag}</span>
+                        <CountryFlag flag={city.flag} label={city.country} />
                         <span className="truncate">{city.city}</span>
                       </div>
                       <div className="text-xs text-muted-foreground">{city.country}</div>
@@ -399,7 +400,7 @@ function GuidePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
               <div className="relative flex min-h-72 flex-col justify-end p-6 text-background">
-                <div className="text-5xl">{selected.flag}</div>
+                <CountryFlag flag={selected.flag} label={selected.country} className="h-9 w-14" />
                 <h2 className="mt-2 font-display text-4xl font-bold">{selected.city}</h2>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
                   <span className="rounded-full bg-background/90 px-3 py-1 text-foreground">

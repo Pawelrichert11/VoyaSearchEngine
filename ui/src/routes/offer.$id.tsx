@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Bell, ExternalLink, Heart, Plane } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
+import { CountryFlag } from "@/components/voya/CountryFlag";
 import { fetchVoyaOffers, findOffer, type VoyaResultRow } from "@/lib/voya-search";
 
 export const Route = createFileRoute("/offer/$id")({
@@ -40,12 +41,24 @@ function OfferDetail() {
     <div className="min-h-screen bg-background">
       <TopBar />
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        <Link to="/results/$id" params={{ id: "demo" }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+        <Link
+          to="/results/$id"
+          params={{ id: "demo" }}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3 w-3" /> Wroc do arkusza
         </Link>
 
-        {loading && <div className="mt-8 rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">Wczytuje oferte...</div>}
-        {error && <div className="mt-8 rounded-2xl bg-brand-pink-soft p-6 text-sm text-foreground">{error}</div>}
+        {loading && (
+          <div className="mt-8 rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
+            Wczytuje oferte...
+          </div>
+        )}
+        {error && (
+          <div className="mt-8 rounded-2xl bg-brand-pink-soft p-6 text-sm text-foreground">
+            {error}
+          </div>
+        )}
         {!loading && !offer && (
           <div className="mt-8 rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
             Nie znaleziono oferty.
@@ -58,9 +71,15 @@ function OfferDetail() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3">
-                    <span className="text-4xl">{offer.flag}</span>
+                    <CountryFlag
+                      flag={offer.flag}
+                      label={offer.country || offer.destination}
+                      className="h-9 w-14"
+                    />
                     <div>
-                      <h1 className="font-display text-3xl font-bold sm:text-4xl">{offer.destination}</h1>
+                      <h1 className="font-display text-3xl font-bold sm:text-4xl">
+                        {offer.destination}
+                      </h1>
                       <div className="text-sm text-foreground/70">
                         {offer.dates} · {offer.originIata} → {offer.destIata}
                       </div>
@@ -68,7 +87,12 @@ function OfferDetail() {
                   </div>
                   <div className="mt-4 flex flex-wrap gap-1.5">
                     {offer.vibes.map((v, i) => (
-                      <span key={`${v}-${i}`} className="rounded-full bg-card/90 px-3 py-1 text-sm shadow-soft">{v}</span>
+                      <span
+                        key={`${v}-${i}`}
+                        className="rounded-full bg-card/90 px-3 py-1 text-sm shadow-soft"
+                      >
+                        {v}
+                      </span>
                     ))}
                     <span className="rounded-full bg-brand-green px-3 py-1 text-xs font-semibold text-white">
                       Match {offer.match}%
@@ -76,8 +100,12 @@ function OfferDetail() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="flex h-10 w-10 items-center justify-center rounded-full bg-card"><Heart className="h-4 w-4" /></button>
-                  <button className="flex h-10 w-10 items-center justify-center rounded-full bg-card"><Bell className="h-4 w-4" /></button>
+                  <button className="flex h-10 w-10 items-center justify-center rounded-full bg-card">
+                    <Heart className="h-4 w-4" />
+                  </button>
+                  <button className="flex h-10 w-10 items-center justify-center rounded-full bg-card">
+                    <Bell className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -95,7 +123,9 @@ function OfferDetail() {
                   <div className="text-center text-xs text-muted-foreground">
                     <div>{offer.days || "-"} dni</div>
                     <div className="my-1 h-px bg-border" />
-                    <div>{offer.depart} → {offer.returnDate}</div>
+                    <div>
+                      {offer.depart} → {offer.returnDate}
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="font-display text-2xl font-bold">{offer.destIata || "?"}</div>
@@ -103,8 +133,18 @@ function OfferDetail() {
                   </div>
                 </div>
                 <div className="mt-4 rounded-xl bg-muted p-3 text-xs">
-                  <div className="flex justify-between"><span>Cena lotu / os.</span><span className="font-medium">{formatPrice(offer.flightPrice)}</span></div>
-                  <div className="mt-1 flex justify-between"><span>Link</span>{offer.flightLink ? <External href={offer.flightLink} label="Otworz lot" /> : <span>brak</span>}</div>
+                  <div className="flex justify-between">
+                    <span>Cena lotu / os.</span>
+                    <span className="font-medium">{formatPrice(offer.flightPrice)}</span>
+                  </div>
+                  <div className="mt-1 flex justify-between">
+                    <span>Link</span>
+                    {offer.flightLink ? (
+                      <External href={offer.flightLink} label="Otworz lot" />
+                    ) : (
+                      <span>brak</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -113,7 +153,9 @@ function OfferDetail() {
                   Hotel
                 </div>
                 <div className="font-display text-xl font-bold">{offer.hotel}</div>
-                {offer.hotelStars > 0 && <div className="mt-1 text-brand-yellow-ink">{"★".repeat(offer.hotelStars)}</div>}
+                {offer.hotelStars > 0 && (
+                  <div className="mt-1 text-brand-yellow-ink">{"★".repeat(offer.hotelStars)}</div>
+                )}
                 <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                   <Info label="Basen" value={poolText(offer.pool)} />
                   <Info label="Cena hotelu / os." value={formatPrice(offer.hotelPrice)} />
@@ -121,19 +163,32 @@ function OfferDetail() {
                   <Info label="Typ" value={offer.propertyType || "-"} />
                 </div>
                 <div className="mt-4 rounded-xl bg-muted p-3 text-xs">
-                  <div className="flex justify-between"><span>Link</span>{offer.hotelLink ? <External href={offer.hotelLink} label="Otworz hotel" /> : <span>brak</span>}</div>
-                  {offer.poolEvidence && <div className="mt-2 text-muted-foreground">{offer.poolEvidence}</div>}
+                  <div className="flex justify-between">
+                    <span>Link</span>
+                    {offer.hotelLink ? (
+                      <External href={offer.hotelLink} label="Otworz hotel" />
+                    ) : (
+                      <span>brak</span>
+                    )}
+                  </div>
+                  {offer.poolEvidence && (
+                    <div className="mt-2 text-muted-foreground">{offer.poolEvidence}</div>
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-border bg-card p-6">
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Cena laczna / os.</div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Cena laczna / os.
+                </div>
                 <div className="mt-1 font-display text-4xl font-bold">
                   {formatPrice(offer.price)}
                 </div>
-                <div className="text-xs text-muted-foreground">lot + hotel, wedlug danych z output/offers.json</div>
+                <div className="text-xs text-muted-foreground">
+                  lot + hotel, wedlug danych z output/offers.json
+                </div>
               </div>
               <div className="flex gap-2">
                 {offer.flightLink && <External href={offer.flightLink} label="Lot" large />}
@@ -156,7 +211,15 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function External({ href, label, large = false }: { href: string; label: string; large?: boolean }) {
+function External({
+  href,
+  label,
+  large = false,
+}: {
+  href: string;
+  label: string;
+  large?: boolean;
+}) {
   return (
     <a
       href={href}

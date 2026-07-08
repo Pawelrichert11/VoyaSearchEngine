@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
+import { CountryFlag } from "@/components/voya/CountryFlag";
 import { VibePill } from "@/components/voya/VibePill";
 import { RotatingHero } from "@/components/voya/RotatingHero";
 import { VIBES, DEPARTURE_COUNTRIES, DEMO_RESULTS, type Vibe, type Country } from "@/lib/voya-data";
@@ -47,6 +48,7 @@ const FLEX_MONTHS = [
   { label: "Wrzesień 2026", value: "2026-09" },
 ];
 
+type SearchMode = "chat" | "filters";
 type DestinationMode = "vibe" | "specific";
 type DestinationCountry = { code: string; flag: string; name: string; cities: string[] };
 type DestinationSelection = {
@@ -103,22 +105,6 @@ const SPORT_OPTIONS: SportOption[] = [
   { id: "cycling", label: "Rower", places: ["Majorka", "Algarve", "Istria"] },
 ];
 
-const TRIP_PROMPT_EXAMPLES = [
-  "7 dni w czerwcu, ciepło, basen i lot bez przesiadek",
-  "city break z dobrym jedzeniem i hotelem w centrum",
-  "aktywny trip nad ocean, surfing albo kitesurfing",
-];
-
-const AI_FILTER_PREVIEW = [
-  "🇪🇸 Hiszpania lub 🇵🇹 Portugalia",
-  "☀️ dobra pogoda",
-  "🏊 basen",
-  "📍 centrum miasta",
-  "✈️ bez przesiadek",
-  "⭐ 4+",
-  "💬 8/10+",
-];
-
 const MONTH_NAMES = [
   "Styczeń",
   "Luty",
@@ -134,20 +120,6 @@ const MONTH_NAMES = [
   "Grudzień",
 ];
 const FLEX_YEARS = [2026, 2027];
-
-const COUNTRY_FLAG_BY_CODE: Record<string, string> = {
-  PL: "🇵🇱",
-  DE: "🇩🇪",
-  CZ: "🇨🇿",
-  AT: "🇦🇹",
-  UK: "🇬🇧",
-  NL: "🇳🇱",
-  ES: "🇪🇸",
-  FR: "🇫🇷",
-  IT: "🇮🇹",
-  IE: "🇮🇪",
-  PT: "🇵🇹",
-};
 
 const getDestinationItem = (country: DestinationCountry, city?: string): DestinationSelection => ({
   id: city ? `city:${country.code}:${city}` : `country:${country.code}`,
@@ -169,7 +141,7 @@ const getDestinationLabel = (mode: DestinationMode, destinations: DestinationSel
   if (mode === "vibe") return "Wszędzie · dopasuj do vibe";
   if (destinations.length === 0) return "Wybierz kraje lub miasta";
 
-  const countries = unique(destinations.map((item) => `${item.flag} ${item.country}`));
+  const countries = unique(destinations.map((item) => item.country));
   const cities = destinations.filter((item) => item.type === "city").map((item) => item.name);
   const countryPart = summarizeList(countries, 2);
   const cityPart = cities.length > 0 ? ` · ${summarizeList(cities, 2)}` : "";
@@ -205,6 +177,7 @@ const formatShortDate = (value: string) => {
 const monthLabel = (year: number, monthIndex: number) => `${MONTH_NAMES[monthIndex]} ${year}`;
 
 function SearchHome() {
+  const [searchMode, setSearchMode] = useState<SearchMode>("chat");
   const [tripPrompt, setTripPrompt] = useState("");
   const [selected, setSelected] = useState<string[]>(["pool", "party", "sun", "direct"]);
   const [aiOpen, setAiOpen] = useState(false);
@@ -299,12 +272,9 @@ function SearchHome() {
               <Sparkles className="h-3.5 w-3.5 text-brand-blue" />
               AI dopasuje trip z opisu albo filtrów
             </span>
-            <h1 className="mt-5 font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            <h1 className="mt-5 font-display text-4xl font-bold leading-[1.12] tracking-tight sm:text-6xl">
               Opisz trip,
-              <br />a Voya znajdzie{" "}
-              <span className="rounded-2xl bg-brand-yellow px-3 py-1 text-brand-yellow-ink">
-                lot + nocleg
-              </span>
+              <br />a Voya znajdzie lot + nocleg
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
               Startuj od promptu jak w builderze AI albo klasycznie klikaj filtry. Potem dostajesz
@@ -315,64 +285,94 @@ function SearchHome() {
           {/* Search card */}
           <div className="mx-auto mt-10 max-w-5xl">
             <div className="rounded-[2rem] border border-border bg-card/95 p-3 shadow-pop backdrop-blur sm:p-4">
-              <TripChatBox prompt={tripPrompt} setPrompt={setTripPrompt} />
-              <div className="mt-4 rounded-3xl border border-border bg-background p-3">
-                <div className="mb-3 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Search className="h-3.5 w-3.5" />
-                  Filtry pod chatem
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
-                  <Field
-                    icon={<MapPin className="h-4 w-4 text-brand-blue" />}
-                    label="Skąd"
-                    value={`${fromAirport.name} (${fromAirport.code})`}
-                    col="sm:col-span-3"
-                    onClick={() => setFromOpen(true)}
-                  />
-                  <Field
-                    icon={<ArrowRight className="h-4 w-4 text-brand-green" />}
-                    label="Dokąd"
-                    value={toLabel}
-                    col="sm:col-span-4"
-                    onClick={() => setToOpen(true)}
-                  />
-                  <Field
-                    icon={<CalendarDays className="h-4 w-4 text-brand-yellow-ink" />}
-                    label="Kiedy"
-                    value={whenLabel}
-                    col="sm:col-span-3"
-                    onClick={() => setWhenOpen(true)}
-                  />
-                  <Field
-                    icon={<Users className="h-4 w-4 text-brand-pink" />}
-                    label="Kto"
-                    value={guestsLabel}
-                    col="sm:col-span-2"
-                    onClick={() => setGuestsOpen(true)}
-                  />
-                </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>
-                      {dateMode === "flex" ? `Elastyczne daty ±${flexRange} dni` : "Dokładne daty"}
-                    </span>
-                    <span className="text-border">·</span>
-                    <span>
-                      {selected.includes("direct")
-                        ? "Bez przesiadek"
-                        : "Bezpośrednie lub z 1 przesiadką"}
-                    </span>
-                  </div>
-                  <Link
-                    to="/results/$id"
-                    params={{ id: "demo" }}
-                    className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-pop transition-transform hover:-translate-y-0.5"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Wyszukaj
-                  </Link>
-                </div>
+              <div className="mb-3 flex rounded-full bg-muted p-1">
+                <button
+                  type="button"
+                  onClick={() => setSearchMode("chat")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    searchMode === "chat"
+                      ? "bg-background text-foreground shadow-soft"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Chat AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchMode("filters")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    searchMode === "filters"
+                      ? "bg-background text-foreground shadow-soft"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Search className="h-4 w-4" />
+                  Filtry
+                </button>
               </div>
+              {searchMode === "chat" ? (
+                <TripChatBox prompt={tripPrompt} setPrompt={setTripPrompt} />
+              ) : (
+                <div className="rounded-3xl border border-border bg-background p-3">
+                  <div className="mb-3 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Search className="h-3.5 w-3.5" />
+                    Filtry
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                    <Field
+                      icon={<MapPin className="h-4 w-4 text-brand-blue" />}
+                      label="Skąd"
+                      value={`${fromAirport.name} (${fromAirport.code})`}
+                      col="sm:col-span-3"
+                      onClick={() => setFromOpen(true)}
+                    />
+                    <Field
+                      icon={<ArrowRight className="h-4 w-4 text-brand-green" />}
+                      label="Dokąd"
+                      value={toLabel}
+                      col="sm:col-span-4"
+                      onClick={() => setToOpen(true)}
+                    />
+                    <Field
+                      icon={<CalendarDays className="h-4 w-4 text-brand-yellow-ink" />}
+                      label="Kiedy"
+                      value={whenLabel}
+                      col="sm:col-span-3"
+                      onClick={() => setWhenOpen(true)}
+                    />
+                    <Field
+                      icon={<Users className="h-4 w-4 text-brand-pink" />}
+                      label="Kto"
+                      value={guestsLabel}
+                      col="sm:col-span-2"
+                      onClick={() => setGuestsOpen(true)}
+                    />
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>
+                        {dateMode === "flex"
+                          ? `Elastyczne daty ±${flexRange} dni`
+                          : "Dokładne daty"}
+                      </span>
+                      <span className="text-border">·</span>
+                      <span>
+                        {selected.includes("direct")
+                          ? "Bez przesiadek"
+                          : "Bezpośrednie lub z 1 przesiadką"}
+                      </span>
+                    </div>
+                    <Link
+                      to="/results/$id"
+                      params={{ id: "demo" }}
+                      className="inline-flex items-center rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-pop transition-transform hover:-translate-y-0.5"
+                    >
+                      Wyszukaj
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -697,63 +697,25 @@ function TripChatBox({
   setPrompt: (value: string) => void;
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-brand-blue/20 bg-background p-3 shadow-soft">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-2 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-brand-blue text-white">
-            <MessageCircle className="h-4 w-4" />
-          </span>
-          <div>
-            <div className="font-display text-lg font-semibold">Chat AI</div>
-            <div className="text-xs text-muted-foreground">
-              Opisz słownie wyjazd. AI docelowo uzupełni filtry pod spodem.
-            </div>
-          </div>
-        </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" />
-          prototyp
+    <div className="rounded-3xl border border-border bg-background p-3 shadow-soft">
+      <div className="flex items-center gap-3 rounded-2xl bg-card px-3 py-2">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-brand-blue text-white">
+          <MessageCircle className="h-4 w-4" />
         </span>
-      </div>
-      <div className="rounded-[1.4rem] border border-border bg-card p-3">
-        <textarea
+        <input
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
-          className="h-40 w-full resize-none rounded-2xl border-0 bg-transparent p-2 text-base outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           placeholder="np. Chcemy tani tydzień w czerwcu, ciepło 25°C+, hotel z basenem, dobre opinie, lot bez przesiadek i miasto z plażą."
         />
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
-          <div className="flex flex-wrap gap-2">
-            {TRIP_PROMPT_EXAMPLES.map((example) => (
-              <button
-                key={example}
-                type="button"
-                onClick={() => setPrompt(example)}
-                className="rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-brand-yellow-soft hover:text-brand-yellow-ink"
-              >
-                {example}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            disabled
-            className="inline-flex cursor-not-allowed items-center gap-2 rounded-full bg-muted-foreground px-5 py-2.5 text-sm font-semibold text-white opacity-70"
-          >
-            <Lock className="h-4 w-4" />
-            Wyszukaj
-          </button>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2 px-1">
-        {AI_FILTER_PREVIEW.map((filter) => (
-          <span
-            key={filter}
-            className="rounded-full bg-brand-blue-soft px-3 py-1.5 text-xs font-semibold text-brand-blue-ink"
-          >
-            {filter}
-          </span>
-        ))}
+        <button
+          type="button"
+          disabled
+          className="inline-flex shrink-0 cursor-not-allowed items-center gap-2 rounded-full bg-muted-foreground px-4 py-2 text-sm font-semibold text-white opacity-70"
+        >
+          <Lock className="h-4 w-4" />
+          Wyszukaj
+        </button>
       </div>
     </div>
   );
@@ -903,7 +865,7 @@ function RecommendedOffers() {
             <div className="grid gap-4 p-4 md:grid-cols-[1fr_auto_auto] md:items-center">
               <div>
                 <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                  <span>{offer.flag}</span>
+                  <CountryFlag flag={offer.flag} label={offer.destination} />
                   <span>{offer.dates}</span>
                 </div>
                 <div className="mt-1 font-display text-xl font-bold">{offer.destination}</div>
@@ -1078,7 +1040,10 @@ function FromModal({
                   country.code === c.code ? "bg-brand-blue text-white shadow-pop" : "hover:bg-muted"
                 }`}
               >
-                {COUNTRY_FLAG_BY_CODE[c.code]} {c.name}
+                <span className="inline-flex items-center gap-2">
+                  <CountryFlag code={c.code} label={c.name} />
+                  {c.name}
+                </span>
               </button>
             ))}
           </div>
@@ -1209,8 +1174,9 @@ function ToModal({
                           active ? "bg-brand-blue-soft text-brand-blue-ink" : "hover:bg-muted"
                         }`}
                       >
-                        <span>
-                          {c.flag} {c.name}
+                        <span className="inline-flex items-center gap-2">
+                          <CountryFlag code={c.code} label={c.name} />
+                          {c.name}
                         </span>
                         {count > 0 && <span className="ml-1 text-xs opacity-75">+{count}</span>}
                       </button>
@@ -1246,7 +1212,10 @@ function ToModal({
                     Wybierz miejsca
                   </div>
                   <div className="text-sm font-semibold">
-                    {country.flag} {country.name}
+                    <span className="inline-flex items-center gap-2">
+                      <CountryFlag code={country.code} label={country.name} />
+                      {country.name}
+                    </span>
                   </div>
                 </div>
                 <button
@@ -1298,9 +1267,8 @@ function ToModal({
                   key={item.id}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs"
                 >
-                  {item.type === "country"
-                    ? `${item.flag} ${item.name}`
-                    : `${item.flag} ${item.name}, ${item.country}`}
+                  <CountryFlag code={item.countryCode} label={item.country} />
+                  {item.type === "country" ? item.name : `${item.name}, ${item.country}`}
                   <button
                     onClick={() => removeSelection(item.id)}
                     className="ml-1 rounded-full hover:bg-background"
