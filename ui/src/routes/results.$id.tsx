@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  Check,
+  ChevronDown,
   Filter,
   Map,
   Maximize2,
+  MessageCircle,
   Minimize2,
   PlaneTakeoff,
   RefreshCw,
@@ -14,9 +17,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TopBar } from "@/components/voya/TopBar";
 import { CountryFlag } from "@/components/voya/CountryFlag";
 import { VibePill } from "@/components/voya/VibePill";
+import { voyaButtonVariants } from "@/components/voya/style-system";
+import { cn } from "@/lib/utils";
 import { VIBES, type Vibe } from "@/lib/voya-data";
 import { fetchVoyaOffers, type VoyaResultRow } from "@/lib/voya-search";
 
@@ -25,14 +31,14 @@ export const Route = createFileRoute("/results/$id")({
   head: () => ({
     meta: [
       { title: "Wyniki · Voya" },
-      { name: "description", content: "MVP arkusza wynikow z VoyaSearchEngine." },
+      { name: "description", content: "MVP katalogu wynikow z VoyaSearchEngine." },
     ],
   }),
 });
 
 const statusMeta = {
   loved: { label: "Bierzemy", tone: "bg-brand-green-soft text-brand-green-ink" },
-  maybe: { label: "Moze", tone: "bg-brand-yellow-soft text-brand-yellow-ink" },
+  maybe: { label: "Może", tone: "bg-brand-yellow-soft text-brand-yellow-ink" },
   pending: { label: "Do sprawdzenia", tone: "bg-muted text-muted-foreground" },
   no: { label: "Odpada", tone: "bg-brand-pink-soft text-foreground" },
 } as const;
@@ -45,7 +51,7 @@ const rowTone: Record<VoyaResultRow["status"], string> = {
 };
 
 const PAGE_SIZE = 5;
-const STATUS_FLOW: VoyaResultRow["status"][] = ["pending", "loved", "maybe", "no"];
+const STATUS_OPTIONS: VoyaResultRow["status"][] = ["loved", "maybe", "pending", "no"];
 const LODGING_TYPES = ["hotel", "apartment", "resort", "hostel", "glamping", "bnb", "boutique"];
 
 type MapPoint = { x: number; y: number; airport: string };
@@ -54,6 +60,7 @@ type WeatherOption = {
   label: string;
   detail: string;
 };
+type PriceSort = "none" | "asc" | "desc";
 
 const ORIGIN_POINT: MapPoint = { x: 48, y: 35, airport: "WAW" };
 const MAP_POINTS: Record<string, MapPoint> = {
@@ -93,11 +100,14 @@ function ResultsSheet() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [destinationMode, setDestinationMode] = useState<"any" | "specific">("any");
   const [specificPlaces, setSpecificPlaces] = useState<string[]>([]);
-  const [filterSelected, setFilterSelected] = useState<string[]>(["direct", "pool"]);
+  const [filterSelected, setFilterSelected] = useState<string[]>([]);
   const [hotelStars, setHotelStars] = useState<number | null>(null);
   const [reviewScore, setReviewScore] = useState<number | null>(null);
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [priceSort, setPriceSort] = useState<PriceSort>("none");
   const [viewMode, setViewMode] = useState<"table" | "map">("table");
   const [selectedMapRow, setSelectedMapRow] = useState<string | null>(null);
+  const [statusPickerTarget, setStatusPickerTarget] = useState<string | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadRows = async () => {
@@ -134,12 +144,66 @@ function ResultsSheet() {
     [],
   );
 
-  const visibleRows = rows.slice(0, visibleCount);
-  const allRowsVisible = rows.length > 0 && visibleCount >= rows.length;
+  const availableCountries = useMemo(
+    () =>
+      Array.from(new Set(rows.map(countryNameForRow).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b, "pl"),
+      ),
+    [rows],
+  );
+
+  const displayRows = useMemo(() => {
+    const next = rows.filter((row) => {
+      const country = countryNameForRow(row);
+      if (countryFilter !== "all" && country !== countryFilter) return false;
+      if (
+        destinationMode === "specific" &&
+        specificPlaces.length > 0 &&
+        !specificPlaces.includes(country)
+      ) {
+        return false;
+      }
+      if (hotelStars !== null && row.hotelStars < hotelStars) return false;
+      if (reviewScore !== null && rowReviewScore(row) < reviewScore) return false;
+      return filterSelected.every((id) => rowMatchesFilter(row, id));
+    });
+
+    if (priceSort === "none") return next;
+    return [...next].sort((a, b) =>
+      priceSort === "asc" ? a.price - b.price : b.price - a.price,
+    );
+  }, [
+    countryFilter,
+    destinationMode,
+    filterSelected,
+    hotelStars,
+    priceSort,
+    reviewScore,
+    rows,
+    specificPlaces,
+  ]);
+
+  const visibleRows = displayRows.slice(0, visibleCount);
+  const allRowsVisible = displayRows.length > 0 && visibleCount >= displayRows.length;
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [rows.length]);
+  }, [
+    countryFilter,
+    destinationMode,
+    displayRows.length,
+    filterSelected,
+    hotelStars,
+    priceSort,
+    reviewScore,
+    specificPlaces,
+  ]);
+
+  useEffect(() => {
+    if (countryFilter !== "all" && !availableCountries.includes(countryFilter)) {
+      setCountryFilter("all");
+    }
+  }, [availableCountries, countryFilter]);
 
   const refresh = async () => {
     if (refreshing) return;
@@ -155,10 +219,8 @@ function ResultsSheet() {
 
   const updateStatus = (id: string, status: VoyaResultRow["status"]) =>
     setRows((items) => items.map((row) => (row.id === id ? { ...row, status } : row)));
-  const cycleStatus = (id: string, status: VoyaResultRow["status"]) => {
-    const index = STATUS_FLOW.indexOf(status);
-    updateStatus(id, STATUS_FLOW[(index + 1) % STATUS_FLOW.length]);
-  };
+  const cyclePriceSort = () =>
+    setPriceSort((current) => (current === "none" ? "asc" : current === "asc" ? "desc" : "none"));
   const removeRow = (id: string) => {
     setRows((items) => {
       const index = items.findIndex((row) => row.id === id);
@@ -191,11 +253,14 @@ function ResultsSheet() {
     setCommentTarget(id);
     setCommentDraft("");
   };
+  const closeComment = () => {
+    setCommentTarget(null);
+    setCommentDraft("");
+  };
   const saveComment = () => {
     if (!commentTarget || !commentDraft.trim()) return;
     setComments((current) => ({ ...current, [commentTarget]: (current[commentTarget] || 0) + 1 }));
-    setCommentTarget(null);
-    setCommentDraft("");
+    closeComment();
   };
   return (
     <div
@@ -218,7 +283,7 @@ function ResultsSheet() {
                   <span className="text-2xl">✈️</span>
                   <h1 className="font-display text-2xl font-bold sm:text-3xl">Wyniki</h1>
                   <span className="rounded-full bg-brand-blue-soft px-3 py-1 text-xs font-semibold text-brand-blue-ink">
-                    {rows.length} ofert
+                    {displayRows.length} z {rows.length} ofert
                   </span>
                 </div>
                 <div className="mt-2 max-w-3xl text-sm text-muted-foreground">{message}</div>
@@ -241,17 +306,24 @@ function ResultsSheet() {
         >
           <button
             onClick={() => setFiltersOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+            className={voyaButtonVariants({ variant: "outline", size: "xs" })}
           >
             <Filter className="h-3 w-3" /> Filtry
           </button>
+          <span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+            {displayRows.length} po filtrach
+          </span>
           <div className="flex rounded-full border border-border bg-card p-0.5">
             <button
               type="button"
               onClick={() => setViewMode("table")}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                viewMode === "table" ? "bg-foreground text-background" : "text-muted-foreground"
-              }`}
+              className={cn(
+                voyaButtonVariants({
+                  variant: viewMode === "table" ? "primary" : "ghost",
+                  size: "xs",
+                }),
+                viewMode === "table" ? "shadow-none" : "",
+              )}
             >
               <Table2 className="h-3 w-3" />
               Tabela
@@ -259,9 +331,13 @@ function ResultsSheet() {
             <button
               type="button"
               onClick={() => setViewMode("map")}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                viewMode === "map" ? "bg-foreground text-background" : "text-muted-foreground"
-              }`}
+              className={cn(
+                voyaButtonVariants({
+                  variant: viewMode === "map" ? "primary" : "ghost",
+                  size: "xs",
+                }),
+                viewMode === "map" ? "shadow-none" : "",
+              )}
             >
               <Map className="h-3 w-3" />
               Mapa
@@ -270,7 +346,7 @@ function ResultsSheet() {
           <button
             onClick={refresh}
             disabled={refreshing || loading}
-            className="inline-flex items-center gap-1.5 rounded-full border border-brand-green/40 bg-brand-green-soft px-3 py-1.5 text-xs font-semibold text-brand-green-ink transition-colors hover:brightness-105 disabled:opacity-70"
+            className={voyaButtonVariants({ variant: "green", size: "xs" })}
           >
             <RefreshCw className={`h-3 w-3 ${refreshing || loading ? "animate-spin" : ""}`} />
             {loading ? "Wczytuje..." : "Odśwież ceny"}
@@ -278,14 +354,14 @@ function ResultsSheet() {
           <div className="ml-auto">
             <button
               onClick={copyShareLink}
-              className="mr-2 inline-flex items-center gap-1.5 rounded-full border border-brand-blue/40 bg-brand-blue-soft px-3 py-1.5 text-xs font-semibold text-brand-blue-ink hover:brightness-105"
+              className={cn(voyaButtonVariants({ variant: "blue", size: "xs" }), "mr-2")}
             >
               <Share2 className="h-3 w-3" />
-              {shareCopied ? "Link skopiowany" : "Share arkusz"}
+              {shareCopied ? "Link skopiowany" : "Udostępnij katalog"}
             </button>
             <button
               onClick={() => setFullscreen((value) => !value)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              className={voyaButtonVariants({ variant: "outline", size: "xs" })}
               aria-label="Pelny ekran"
             >
               {fullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
@@ -303,13 +379,33 @@ function ResultsSheet() {
                 <table className="w-full min-w-[1140px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
-                      <Th>Destynacja</Th>
+                      <Th>
+                        <div className="flex items-center gap-2">
+                          <span>Destynacja</span>
+                          <CountryColumnFilter
+                            countries={availableCountries}
+                            selected={countryFilter}
+                            onSelect={setCountryFilter}
+                          />
+                        </div>
+                      </Th>
                       <Th>Lot</Th>
                       <Th>Hotel</Th>
                       <Th>Pogoda</Th>
                       <Th>Pasuje</Th>
                       <Th>Dni</Th>
-                      <Th className="text-right">Cena / os.</Th>
+                      <Th className="text-right">
+                        <button
+                          type="button"
+                          onClick={cyclePriceSort}
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-1 font-medium hover:bg-background"
+                        >
+                          Cena / os.
+                          <span className="text-[10px]">
+                            {priceSort === "asc" ? "↑" : priceSort === "desc" ? "↓" : "↕"}
+                          </span>
+                        </button>
+                      </Th>
                       <Th>Status</Th>
                       <Th className="w-10" />
                     </tr>
@@ -317,6 +413,7 @@ function ResultsSheet() {
                   <tbody>
                     {visibleRows.map((row) => {
                       const status = statusMeta[row.status];
+                      const country = countryNameForRow(row);
                       return (
                         <tr
                           key={row.id}
@@ -331,14 +428,14 @@ function ResultsSheet() {
                               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-xl">
                                 <CountryFlag
                                   flag={row.flag}
-                                  label={row.country || row.destination}
+                                  label={country || row.destination}
                                   className="h-6 w-8"
                                 />
                               </span>
                               <div>
                                 <div className="font-semibold">{row.destination}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  {row.country || row.destIata}
+                                  {country || row.destIata}
                                 </div>
                               </div>
                             </Link>
@@ -384,32 +481,89 @@ function ResultsSheet() {
                                 <button
                                   onClick={() => updateStatus(row.id, "loved")}
                                   className={`flex h-8 w-8 items-center justify-center rounded-full text-sm ${row.status === "loved" ? "bg-brand-green text-white" : "hover:bg-muted"}`}
-                                  aria-label="Lubię"
+                                  aria-label="Bierzemy"
                                 >
                                   👍
                                 </button>
-                                <button
-                                  onClick={() => openComment(row.id)}
-                                  className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-sm hover:bg-muted"
-                                  aria-label="Komentarz"
+                                <Popover
+                                  open={commentTarget === row.id}
+                                  onOpenChange={(open) =>
+                                    open ? openComment(row.id) : closeComment()
+                                  }
                                 >
-                                  💬{comments[row.id] ? ` ${comments[row.id]}` : ""}
-                                </button>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 text-sm hover:bg-muted"
+                                      aria-label="Komentarz"
+                                    >
+                                      <MessageCircle className="h-3.5 w-3.5" />
+                                      {comments[row.id] ? comments[row.id] : ""}
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    side="left"
+                                    align="center"
+                                    className="w-80 rounded-2xl border-border bg-card p-4 shadow-pop"
+                                  >
+                                    <CommentEditor
+                                      draft={commentDraft}
+                                      onCancel={closeComment}
+                                      onChange={setCommentDraft}
+                                      onSave={saveComment}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                                 <button
                                   onClick={() => updateStatus(row.id, "no")}
                                   className={`flex h-8 w-8 items-center justify-center rounded-full text-sm ${row.status === "no" ? "bg-brand-pink-soft" : "hover:bg-muted"}`}
-                                  aria-label="Nie lubię"
+                                  aria-label="Odpada"
                                 >
                                   👎
                                 </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => cycleStatus(row.id, row.status)}
-                                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${status.tone}`}
+                              <Popover
+                                open={statusPickerTarget === row.id}
+                                onOpenChange={(open) =>
+                                  setStatusPickerTarget(open ? row.id : null)
+                                }
                               >
-                                {status.label}
-                              </button>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${status.tone}`}
+                                  >
+                                    {status.label}
+                                    <ChevronDown className="h-3 w-3" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  side="left"
+                                  align="center"
+                                  className="w-52 rounded-2xl border-border bg-card p-2 shadow-pop"
+                                >
+                                  <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Status
+                                  </div>
+                                  {STATUS_OPTIONS.map((option) => {
+                                    const optionMeta = statusMeta[option];
+                                    const active = row.status === option;
+                                    return (
+                                      <button
+                                        key={option}
+                                        type="button"
+                                        onClick={() => {
+                                          updateStatus(row.id, option);
+                                          setStatusPickerTarget(null);
+                                        }}
+                                        className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-muted"
+                                      >
+                                        <span>{optionMeta.label}</span>
+                                        {active && <Check className="h-4 w-4 text-brand-blue" />}
+                                      </button>
+                                    );
+                                  })}
+                                </PopoverContent>
+                              </Popover>
                             </div>
                           </Td>
                           <Td>
@@ -424,10 +578,12 @@ function ResultsSheet() {
                         </tr>
                       );
                     })}
-                    {!loading && rows.length === 0 && (
+                    {!loading && displayRows.length === 0 && (
                       <tr>
                         <td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">
-                          Brak ofert w `output/offers.json`.
+                          {rows.length === 0
+                            ? "Brak ofert w `output/offers.json`."
+                            : "Brak ofert pasujących do wybranych filtrów."}
                         </td>
                       </tr>
                     )}
@@ -435,17 +591,20 @@ function ResultsSheet() {
                 </table>
               </div>
             </div>
-            {rows.length > PAGE_SIZE && (
+            {displayRows.length > PAGE_SIZE && (
               <div className="mt-4 rounded-2xl border border-border bg-card p-3">
                 <div className="text-sm text-muted-foreground">
-                  Pokazujesz {Math.min(visibleCount, rows.length)} z {rows.length} ofert
+                  Pokazujesz {Math.min(visibleCount, displayRows.length)} z {displayRows.length}{" "}
+                  ofert
                 </div>
                 <div className="mt-3">
                   {!allRowsVisible ? (
                     <button
                       type="button"
                       onClick={() =>
-                        setVisibleCount((current) => Math.min(rows.length, current + PAGE_SIZE))
+                        setVisibleCount((current) =>
+                          Math.min(displayRows.length, current + PAGE_SIZE),
+                        )
                       }
                       className="w-full rounded-full bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-pop"
                     >
@@ -467,7 +626,7 @@ function ResultsSheet() {
             )}
           </>
         ) : (
-          <FlightMap rows={rows} selectedId={selectedMapRow} onSelect={setSelectedMapRow} />
+          <FlightMap rows={displayRows} selectedId={selectedMapRow} onSelect={setSelectedMapRow} />
         )}
       </div>
       {undoRow && (
@@ -500,50 +659,6 @@ function ResultsSheet() {
           }}
         />
       )}
-      {commentTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm"
-          onMouseDown={() => setCommentTarget(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-3xl border border-border bg-card p-5 shadow-pop"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="font-display text-lg font-semibold">Komentarz</div>
-                <div className="text-xs text-muted-foreground">Dodaj notatkę do oferty.</div>
-              </div>
-              <button
-                onClick={() => setCommentTarget(null)}
-                className="rounded-full p-2 hover:bg-muted"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <textarea
-              value={commentDraft}
-              onChange={(event) => setCommentDraft(event.target.value)}
-              className="h-24 w-full resize-none rounded-2xl border border-border bg-background p-3 text-sm outline-none focus:border-brand-blue"
-              placeholder="np. dobry hotel, ale lot za wcześnie"
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setCommentTarget(null)}
-                className="rounded-full border border-border px-4 py-2 text-sm font-medium"
-              >
-                Anuluj
-              </button>
-              <button
-                onClick={saveComment}
-                className="rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background"
-              >
-                Zapisz
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -556,9 +671,190 @@ function Td({ children, className = "" }: { children?: ReactNode; className?: st
   return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
 }
 
+function CountryColumnFilter({
+  countries,
+  selected,
+  onSelect,
+}: {
+  countries: string[];
+  selected: string;
+  onSelect: (country: string) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold normal-case",
+            selected === "all"
+              ? "bg-background text-muted-foreground"
+              : "bg-brand-blue-soft text-brand-blue-ink",
+          )}
+        >
+          {selected === "all" ? "Kraj" : selected}
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-56 rounded-2xl border-border bg-card p-2 text-sm shadow-pop"
+      >
+        <button
+          type="button"
+          onClick={() => onSelect("all")}
+          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-muted"
+        >
+          <span>Wszystkie kraje</span>
+          {selected === "all" && <Check className="h-4 w-4 text-brand-blue" />}
+        </button>
+        {countries.map((country) => (
+          <button
+            key={country}
+            type="button"
+            onClick={() => onSelect(country)}
+            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-muted"
+          >
+            <span>{country}</span>
+            {selected === country && <Check className="h-4 w-4 text-brand-blue" />}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function CommentEditor({
+  draft,
+  onCancel,
+  onChange,
+  onSave,
+}: {
+  draft: string;
+  onCancel: () => void;
+  onChange: (value: string) => void;
+  onSave: () => void;
+}) {
+  return (
+    <div>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <div className="font-display text-base font-semibold">Komentarz</div>
+          <div className="text-xs text-muted-foreground">Dodaj notatkę do oferty.</div>
+        </div>
+        <button type="button" onClick={onCancel} className="rounded-full p-1.5 hover:bg-muted">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <textarea
+        value={draft}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-24 w-full resize-none rounded-2xl border border-border bg-background p-3 text-sm outline-none focus:border-brand-blue"
+        placeholder="np. dobry hotel, ale lot za wcześnie"
+      />
+      <div className="mt-3 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full border border-border px-3 py-1.5 text-sm font-medium"
+        >
+          Anuluj
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background"
+        >
+          Zapisz
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function normalizeText(value: string) {
+  return value
+    .toLocaleLowerCase("pl")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function countryNameForRow(row: VoyaResultRow) {
+  if (row.country?.trim()) {
+    const country = row.country.trim();
+    const normalized = normalizeText(country);
+    const aliases: Record<string, string> = {
+      es: "Hiszpania",
+      spain: "Hiszpania",
+      hiszpania: "Hiszpania",
+      pt: "Portugalia",
+      portugal: "Portugalia",
+      portugalia: "Portugalia",
+      gr: "Grecja",
+      greece: "Grecja",
+      grecja: "Grecja",
+      hr: "Chorwacja",
+      croatia: "Chorwacja",
+      chorwacja: "Chorwacja",
+      it: "Włochy",
+      italy: "Włochy",
+      wlochy: "Włochy",
+      ma: "Maroko",
+      morocco: "Maroko",
+      maroko: "Maroko",
+    };
+    return aliases[normalized] ?? country;
+  }
+  const destination = normalizeText(row.destination);
+  if (destination.includes("palma") || destination.includes("walencja")) return "Hiszpania";
+  if (destination.includes("lizbona")) return "Portugalia";
+  if (destination.includes("split")) return "Chorwacja";
+  if (destination.includes("kreta") || destination.includes("chania")) return "Grecja";
+  if (destination.includes("marrakesz")) return "Maroko";
+  return "";
+}
+
+function rowReviewScore(row: VoyaResultRow) {
+  return row.reviewScore || Math.round(row.match / 10);
+}
+
+function rowMatchesFilter(row: VoyaResultRow, id: string) {
+  const vibe = VIBES.find((item) => item.id === id);
+  const text = normalizeText(
+    [
+      row.destination,
+      row.country,
+      row.hotel,
+      row.hotelArea,
+      row.propertyType,
+      row.flight,
+      row.vibes.join(" "),
+      row.weather,
+    ].join(" "),
+  );
+
+  if (id === "direct") return text.includes("direct") || text.includes("bez przesiad");
+  if (id === "onestop") return text.includes("1 stop") || text.includes("przesiad");
+  if (id === "shortflight") {
+    const match = row.flight.match(/(\d+(?:[,.]\d+)?)\s*h/i);
+    return match ? Number(match[1].replace(",", ".")) < 4 : true;
+  }
+  if (id === "pool") return row.pool === "yes" || text.includes("pool") || text.includes("basen");
+  if (id === "hotel") return text.includes("hotel");
+  if (id === "apartment") return text.includes("apart") || text.includes("mieszkan");
+  if (id === "resort") return text.includes("resort");
+  if (id === "hostel") return text.includes("hostel");
+  if (id === "bnb") return text.includes("b&b") || text.includes("pensjonat");
+  if (id === "boutique") return text.includes("butik");
+
+  if (!vibe) return true;
+  const normalizedLabel = normalizeText(vibe.label);
+  return row.vibes.includes(vibe.emoji) || text.includes(normalizedLabel);
+}
+
 function formatPrice(value: number) {
   if (!value) return "-";
-  return `${Math.round(value).toLocaleString("pl-PL")} zl`;
+  return `${Math.round(value).toLocaleString("pl-PL")} zł`;
 }
 
 function formatDays(row: VoyaResultRow) {
@@ -727,7 +1023,7 @@ function FlightMap({
       <aside className="rounded-3xl border border-border bg-card p-4 shadow-soft">
         <div className="mb-3 flex items-center gap-2">
           <PlaneTakeoff className="h-4 w-4 text-brand-green" />
-          <div className="font-display text-lg font-semibold">Loty w arkuszu</div>
+          <div className="font-display text-lg font-semibold">Loty w katalogu</div>
         </div>
         {selected && (
           <div className="mb-4 rounded-2xl bg-brand-yellow-soft/55 p-3">
@@ -927,6 +1223,7 @@ function SheetFiltersModal({
   const [nextSelected, setNextSelected] = useState(selected);
   const [nextStars, setNextStars] = useState(hotelStars);
   const [nextReviews, setNextReviews] = useState(reviewScore);
+  const [activeSection, setActiveSection] = useState<"hotel" | "destination">("hotel");
   const allVibes = VIBES;
   const destinationPills = allVibes.filter(
     (vibe) => vibe.category === "destination" || vibe.category === "mood",
@@ -961,7 +1258,7 @@ function SheetFiltersModal({
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <div className="font-display text-xl font-semibold">Filtry arkusza</div>
+            <div className="font-display text-xl font-semibold">Filtry katalogu</div>
             <div className="text-xs text-muted-foreground">
               Możesz zmienić miejsce, charakter wyjazdu i filtry hotelu.
             </div>
@@ -973,103 +1270,132 @@ function SheetFiltersModal({
 
         <div className="mb-4 flex gap-2 rounded-full bg-muted p-1">
           <button
-            onClick={() => setNextDestinationMode("any")}
+            type="button"
+            onClick={() => setActiveSection("hotel")}
             className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${
-              nextDestinationMode === "any" ? "bg-background shadow-pop" : "text-muted-foreground"
+              activeSection === "hotel" ? "bg-background shadow-pop" : "text-muted-foreground"
             }`}
           >
-            Dowolne miejsce
+            Hotel i udogodnienia
           </button>
           <button
-            onClick={() => setNextDestinationMode("specific")}
+            type="button"
+            onClick={() => setActiveSection("destination")}
             className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${
-              nextDestinationMode === "specific"
-                ? "bg-background shadow-pop"
-                : "text-muted-foreground"
+              activeSection === "destination" ? "bg-background shadow-pop" : "text-muted-foreground"
             }`}
           >
-            Konkretne miejsce
+            Kraj i klimat
           </button>
         </div>
 
-        {nextDestinationMode === "any" ? (
-          <div className="space-y-4">
+        {activeSection === "hotel" ? (
+          <div className="space-y-4 rounded-2xl bg-brand-green-soft/30 p-4">
             <FilterPillGroup
-              title="Charakter miejsca"
-              pills={destinationPills}
+              title="Zakwaterowanie"
+              pills={lodging}
               selected={nextSelected}
               toggle={toggleLocal}
             />
             <FilterPillGroup
-              title="Pogoda i klimat"
-              pills={climatePills}
+              title="Udogodnienia"
+              pills={amenities}
               selected={nextSelected}
               toggle={toggleLocal}
             />
+            <div className="grid gap-2 md:grid-cols-2">
+              <NumberThresholdMini
+                title="Liczba gwiazdek"
+                value={nextStars}
+                suffix="+"
+                min={1}
+                max={5}
+                onChange={setNextStars}
+              />
+              <NumberThresholdMini
+                title="Opinie"
+                value={nextReviews}
+                suffix="/10+"
+                min={1}
+                max={10}
+                onChange={setNextReviews}
+              />
+            </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-background p-3">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Zmień miejsce
+          <div className="space-y-4 rounded-2xl border border-border bg-background p-4">
+            <div className="flex gap-2 rounded-full bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => setNextDestinationMode("any")}
+                className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${
+                  nextDestinationMode === "any"
+                    ? "bg-background shadow-pop"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Dowolne miejsce
+              </button>
+              <button
+                type="button"
+                onClick={() => setNextDestinationMode("specific")}
+                className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${
+                  nextDestinationMode === "specific"
+                    ? "bg-background shadow-pop"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Konkretne miejsce
+              </button>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { code: "ES", label: "Hiszpania" },
-                { code: "PT", label: "Portugalia" },
-                { code: "GR", label: "Grecja" },
-                { code: "HR", label: "Chorwacja" },
-                { code: "IT", label: "Włochy" },
-              ].map((place) => (
-                <button
-                  key={place.code}
-                  type="button"
-                  onClick={() => togglePlace(place.label)}
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                    nextPlaces.includes(place.label)
-                      ? "bg-brand-blue text-white shadow-pop"
-                      : "bg-muted hover:bg-brand-blue-soft"
-                  }`}
-                >
-                  <CountryFlag code={place.code} label={place.label} />
-                  {place.label}
-                </button>
-              ))}
-            </div>
+
+            {nextDestinationMode === "any" ? (
+              <div className="space-y-4">
+                <FilterPillGroup
+                  title="Charakter miejsca"
+                  pills={destinationPills}
+                  selected={nextSelected}
+                  toggle={toggleLocal}
+                />
+                <FilterPillGroup
+                  title="Pogoda i klimat"
+                  pills={climatePills}
+                  selected={nextSelected}
+                  toggle={toggleLocal}
+                />
+              </div>
+            ) : (
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Zmień miejsce
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { code: "ES", label: "Hiszpania" },
+                    { code: "PT", label: "Portugalia" },
+                    { code: "GR", label: "Grecja" },
+                    { code: "HR", label: "Chorwacja" },
+                    { code: "IT", label: "Włochy" },
+                  ].map((place) => (
+                    <button
+                      key={place.code}
+                      type="button"
+                      onClick={() => togglePlace(place.label)}
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                        nextPlaces.includes(place.label)
+                          ? "bg-brand-blue text-white shadow-pop"
+                          : "bg-muted hover:bg-brand-blue-soft"
+                      }`}
+                    >
+                      <CountryFlag code={place.code} label={place.label} />
+                      {place.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
-
-        <div className="mt-5 space-y-4 rounded-2xl bg-brand-green-soft/30 p-4">
-          <FilterPillGroup
-            title="Zakwaterowanie"
-            pills={lodging}
-            selected={nextSelected}
-            toggle={toggleLocal}
-          />
-          <FilterPillGroup
-            title="Udogodnienia"
-            pills={amenities}
-            selected={nextSelected}
-            toggle={toggleLocal}
-          />
-          <div className="grid gap-2 md:grid-cols-2">
-            <NumberThresholdMini
-              title="Liczba gwiazdek"
-              value={nextStars}
-              suffix="+"
-              min={1}
-              max={5}
-              onChange={setNextStars}
-            />
-            <NumberThresholdMini
-              title="Opinie"
-              value={nextReviews}
-              suffix="/10+"
-              min={1}
-              max={10}
-              onChange={setNextReviews}
-            />
-          </div>
-        </div>
 
         <div className="mt-6 flex justify-end gap-2">
           <button

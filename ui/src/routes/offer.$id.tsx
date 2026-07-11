@@ -46,7 +46,7 @@ function OfferDetail() {
           params={{ id: "demo" }}
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="h-3 w-3" /> Wroc do arkusza
+          <ArrowLeft className="h-3 w-3" /> Wroc do katalogu
         </Link>
 
         {loading && (

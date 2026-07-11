@@ -1,11 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bell, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { voyaButtonVariants } from "@/components/voya/style-system";
 
 export function TopBar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const nav = [
     { to: "/", label: "Szukaj" },
-    { to: "/sheets", label: "Moje arkusze" },
+    { to: "/sheets", label: "Moje katalogi" },
     { to: "/alerts", label: "Alerty" },
     { to: "/guide", label: "Przewodnik" },
   ];
@@ -29,9 +31,13 @@ export function TopBar() {
               <Link
                 key={n.to}
                 to={n.to}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  active ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted"
-                }`}
+                className={cn(
+                  voyaButtonVariants({
+                    variant: active ? "primary" : "ghost",
+                    size: "md",
+                  }),
+                  active ? "shadow-none" : "",
+                )}
               >
                 {n.label}
               </Link>
@@ -41,7 +47,7 @@ export function TopBar() {
         <div className="flex items-center gap-2">
           <Link
             to="/alerts"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border hover:bg-muted"
+            className={cn(voyaButtonVariants({ variant: "outline", size: "icon" }), "relative")}
             aria-label="Alerty"
           >
             <Bell className="h-4 w-4" />

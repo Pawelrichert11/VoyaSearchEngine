@@ -52,6 +52,7 @@ export type VoyaResultRow = ResultRow & {
   hotelPrice: number;
   hotelArea: string;
   propertyType: string;
+  reviewScore: number;
   pool: "yes" | "no" | "unknown";
   poolEvidence: string;
   flightLink: string;
@@ -73,6 +74,7 @@ const FALLBACK_ROWS: VoyaResultRow[] = DEMO_RESULTS.map((row) => ({
   hotelPrice: row.price,
   hotelArea: "",
   propertyType: "hotel",
+  reviewScore: 0,
   pool: row.vibes.includes("🏊") ? "yes" : "unknown",
   poolEvidence: "",
   flightLink: "",
@@ -194,6 +196,7 @@ export function toVoyaResult(row: BackendOffer, index: number): VoyaResultRow {
     hotelPrice: numberValue(row.hotel_price),
     hotelArea: row.hotel_area || "",
     propertyType: row.property_type || row.accommodation_type || "",
+    reviewScore: numberValue(row.review_score),
     pool,
     poolEvidence: row.outdoor_evidence || "",
     flightLink: row.flight_link || "",

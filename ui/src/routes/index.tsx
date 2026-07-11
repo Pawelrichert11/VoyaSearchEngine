@@ -2,17 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   ArrowRight,
-  Building2,
   CalendarDays,
   Check,
-  ChevronDown,
-  ChevronUp,
-  Compass,
   Lock,
   MapPin,
   MessageCircle,
   Minus,
-  Plane,
   Plus,
   Search,
   Sparkles,
@@ -21,8 +16,10 @@ import {
 } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
 import { CountryFlag } from "@/components/voya/CountryFlag";
-import { VibePill } from "@/components/voya/VibePill";
 import { RotatingHero } from "@/components/voya/RotatingHero";
+import { SearchFilterPanel, type SearchFilterTab } from "@/components/voya/SearchFilterPanel";
+import { voya } from "@/components/voya/style-system";
+import { cn } from "@/lib/utils";
 import { VIBES, DEPARTURE_COUNTRIES, DEMO_RESULTS, type Vibe, type Country } from "@/lib/voya-data";
 
 export const Route = createFileRoute("/")({
@@ -42,7 +39,6 @@ const FLEX_MONTHS = [
 ];
 
 type SearchMode = "chat" | "filters";
-type FilterTab = "destination" | "hotel" | "flight";
 type DestinationMode = "vibe" | "specific";
 type DestinationCountry = { code: string; flag: string; name: string; cities: string[] };
 type DestinationSelection = {
@@ -172,7 +168,7 @@ const monthLabel = (year: number, monthIndex: number) => `${MONTH_NAMES[monthInd
 
 function SearchHome() {
   const [searchMode, setSearchMode] = useState<SearchMode>("chat");
-  const [filterTab, setFilterTab] = useState<FilterTab | null>("destination");
+  const [filterTab, setFilterTab] = useState<SearchFilterTab | null>(null);
   const [tripPrompt, setTripPrompt] = useState("");
   const [selected, setSelected] = useState<string[]>(["pool", "party", "sun", "direct"]);
   const [aiOpen, setAiOpen] = useState(false);
@@ -280,14 +276,14 @@ function SearchHome() {
               <br />a Voya znajdzie lot + nocleg
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Startuj od promptu jak w builderze AI albo klasycznie klikaj filtry. Potem dostajesz
-              arkusz z ofertami, komentarzami i mapą lotów do wspólnego wyboru.
+              Opisz wyjazd jednym zdaniem albo ustaw filtry ręcznie. Voya porówna loty i noclegi
+              w katalogu, który możesz sortować, komentować i udostępnić ekipie.
             </p>
           </div>
 
           {/* Search card */}
           <div className="mx-auto mt-10 max-w-5xl">
-            <div className="rounded-[2rem] border border-border bg-card/95 p-3 shadow-pop backdrop-blur sm:p-4">
+            <div className={voya.heroCard}>
               <div className="mb-3 flex rounded-full bg-muted p-1">
                 <button
                   type="button"
@@ -349,19 +345,21 @@ function SearchHome() {
                         onClick={() => setGuestsOpen(true)}
                       />
                     </div>
-                    <FilterTabsPanel
+                    <SearchFilterPanel
                       activeTab={filterTab}
                       onTabClick={(tab) =>
                         setFilterTab((current) => (current === tab ? null : tab))
                       }
                       grouped={grouped}
                       hotelStars={hotelStars}
+                      lodgingTypeIds={LODGING_TYPES}
                       reviewScore={reviewScore}
                       selected={selected}
                       selectedSports={selectedSports}
                       setHotelStars={setHotelStars}
                       setReviewScore={setReviewScore}
                       setSportsOpen={setSportsOpen}
+                      sportOptions={SPORT_OPTIONS}
                       toMode={toMode}
                       toggle={toggle}
                     />
@@ -536,13 +534,8 @@ function Field({
   onClick?: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`group flex items-center gap-3 rounded-2xl bg-background px-4 py-3 text-left transition-colors hover:bg-muted ${col}`}
-    >
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted group-hover:bg-background">
-        {icon}
-      </span>
+    <button onClick={onClick} className={cn(voya.field, col)}>
+      <span className={voya.iconBox}>{icon}</span>
       <div className="min-w-0">
         <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {label}
@@ -579,306 +572,6 @@ function TripChatBox({
         >
           <Lock className="h-4 w-4" />
           Wyszukaj
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function FilterTabsPanel({
-  activeTab,
-  onTabClick,
-  grouped,
-  hotelStars,
-  reviewScore,
-  selected,
-  selectedSports,
-  setHotelStars,
-  setReviewScore,
-  setSportsOpen,
-  toMode,
-  toggle,
-}: {
-  activeTab: FilterTab | null;
-  onTabClick: (tab: FilterTab) => void;
-  grouped: Record<string, Vibe[]>;
-  hotelStars: number | null;
-  reviewScore: number | null;
-  selected: string[];
-  selectedSports: string[];
-  setHotelStars: (value: number | null) => void;
-  setReviewScore: (value: number | null) => void;
-  setSportsOpen: (value: boolean) => void;
-  toMode: DestinationMode;
-  toggle: (id: string) => void;
-}) {
-  const destinationPills = [...grouped.destination, ...grouped.mood, ...grouped.climate];
-  const lodgingPills = grouped.stay.filter((p) => LODGING_TYPES.includes(p.id));
-  const standardPills = grouped.stay.filter((p) => !LODGING_TYPES.includes(p.id));
-  const flightPills = grouped.flight;
-  const showDestinationTab = toMode === "vibe";
-  const openTab = showDestinationTab || activeTab !== "destination" ? activeTab : null;
-  const activeLabel =
-    openTab === "destination" ? "Destynacja" : openTab === "hotel" ? "Hotel" : "Lot";
-
-  return (
-    <div className="relative z-30">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          {showDestinationTab && (
-            <FilterSegmentButton
-              active={activeTab === "destination"}
-              icon={<Compass className="h-3.5 w-3.5" />}
-              label="Destynacja"
-              onClick={() => onTabClick("destination")}
-            />
-          )}
-          <FilterSegmentButton
-            active={activeTab === "hotel"}
-            icon={<Building2 className="h-3.5 w-3.5" />}
-            label="Hotel"
-            onClick={() => onTabClick("hotel")}
-          />
-          <FilterSegmentButton
-            active={activeTab === "flight"}
-            icon={<Plane className="h-3.5 w-3.5" />}
-            label="Lot"
-            onClick={() => onTabClick("flight")}
-          />
-          <FilterSegmentButton
-            disabled
-            icon={<Lock className="h-3.5 w-3.5" />}
-            label="Własny filtr AI"
-          />
-        </div>
-        <Link
-          to="/results/$id"
-          params={{ id: "demo" }}
-          className="inline-flex h-9 items-center rounded-full bg-foreground px-5 text-xs font-semibold text-background shadow-pop transition-transform hover:-translate-y-0.5"
-        >
-          Wyszukaj
-        </Link>
-      </div>
-
-      {openTab && (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 rounded-[1.5rem] border border-border bg-card px-4 py-3 shadow-pop">
-          <div className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            {activeLabel}
-          </div>
-          <div>
-            {openTab === "destination" && (
-              <div className="space-y-3">
-                {toMode === "vibe" ? (
-                  <>
-                    <FilterChipCloud pills={destinationPills} selected={selected} toggle={toggle} />
-                    {selectedSports.length > 0 && (
-                      <div className="grid gap-1.5 md:grid-cols-[130px_1fr] md:items-center">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Sporty
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {selectedSports.map((sportId) => {
-                            const sport = SPORT_OPTIONS.find((option) => option.id === sportId);
-                            if (!sport) return null;
-                            return (
-                              <button
-                                key={sport.id}
-                                type="button"
-                                onClick={() => setSportsOpen(true)}
-                                className="rounded-full bg-brand-green-soft px-3 py-1 font-medium text-brand-green-ink"
-                              >
-                                {sport.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="px-1 py-2 text-xs text-muted-foreground">
-                    Masz wybrane konkretne miejsce. Zmień je w polu “Dokąd” w górnym formularzu.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {openTab === "hotel" && (
-              <div className="space-y-2">
-                <LabeledFilterChipCloud
-                  label="Zakwaterowanie"
-                  pills={lodgingPills}
-                  selected={selected}
-                  toggle={toggle}
-                />
-                <LabeledFilterChipCloud
-                  label="Udogodnienia"
-                  pills={standardPills}
-                  selected={selected}
-                  toggle={toggle}
-                />
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                  <NumberThresholdPicker
-                    title="Liczba gwiazdek"
-                    value={hotelStars}
-                    suffix="gwiazdek+"
-                    min={1}
-                    max={5}
-                    onChange={setHotelStars}
-                  />
-                  <NumberThresholdPicker
-                    title="Opinie"
-                    value={reviewScore}
-                    suffix="/10+"
-                    min={1}
-                    max={10}
-                    onChange={setReviewScore}
-                  />
-                </div>
-              </div>
-            )}
-
-            {openTab === "flight" && (
-              <FilterChipCloud pills={flightPills} selected={selected} toggle={toggle} />
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FilterSegmentButton({
-  active,
-  disabled,
-  icon,
-  label,
-  onClick,
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  icon: React.ReactNode;
-  label: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      aria-expanded={active}
-      className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-colors ${
-        disabled
-          ? "cursor-not-allowed bg-muted text-muted-foreground opacity-60"
-          : active
-            ? "bg-foreground text-background shadow-soft"
-            : "bg-muted text-foreground hover:bg-muted/70"
-      }`}
-    >
-      {icon}
-      <span>{label}</span>
-      {!disabled &&
-        (active ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />)}
-    </button>
-  );
-}
-
-function FilterChipCloud({
-  pills,
-  selected,
-  toggle,
-}: {
-  pills: Vibe[];
-  selected: string[];
-  toggle: (id: string) => void;
-}) {
-  if (pills.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {pills.map((v) => (
-        <VibePill
-          key={v.id}
-          emoji={v.emoji}
-          label={v.label}
-          tone={v.tone}
-          active={selected.includes(v.id)}
-          onClick={() => toggle(v.id)}
-          size="sm"
-        />
-      ))}
-    </div>
-  );
-}
-
-function LabeledFilterChipCloud({
-  label,
-  pills,
-  selected,
-  toggle,
-}: {
-  label: string;
-  pills: Vibe[];
-  selected: string[];
-  toggle: (id: string) => void;
-}) {
-  if (pills.length === 0) return null;
-  return (
-    <div className="space-y-1.5">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <FilterChipCloud pills={pills} selected={selected} toggle={toggle} />
-    </div>
-  );
-}
-
-function NumberThresholdPicker({
-  title,
-  value,
-  suffix,
-  min,
-  max,
-  onChange,
-}: {
-  title: string;
-  value: number | null;
-  suffix: string;
-  min: number;
-  max: number;
-  onChange: (value: number | null) => void;
-}) {
-  const current = value ?? min;
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/70 px-3 py-2">
-      <div className="min-w-0">
-        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </div>
-        <div className="mt-0.5 text-sm font-semibold">
-          {value === null ? "Dowolnie" : `${value}${suffix}`}
-        </div>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() =>
-            onChange(value === null || value <= min ? null : Math.max(min, current - 1))
-          }
-          disabled={value === null}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-35"
-          aria-label={`Zmniejsz: ${title}`}
-        >
-          <Minus className="h-3.5 w-3.5" />
-        </button>
-        <span className="w-9 text-center text-sm font-semibold">{value ?? "-"}</span>
-        <button
-          type="button"
-          onClick={() => onChange(Math.min(max, value === null ? min : current + 1))}
-          disabled={value !== null && value >= max}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-35"
-          aria-label={`Zwiększ: ${title}`}
-        >
-          <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -987,7 +680,7 @@ function ModalShell({
       onMouseDown={onClose}
     >
       <div
-        className={`w-full ${wide ? "max-w-3xl" : "max-w-lg"} rounded-3xl border border-border bg-card p-6 shadow-pop`}
+        className={cn("w-full p-6", wide ? "max-w-3xl" : "max-w-lg", voya.surfacePop)}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
