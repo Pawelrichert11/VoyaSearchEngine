@@ -53,6 +53,15 @@ export function TopBar() {
             <Bell className="h-4 w-4" />
             <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-green" />
           </Link>
+          <Link
+            to="/login"
+            className={cn(
+              voyaButtonVariants({ variant: "primary", size: "md" }),
+              "hidden sm:inline-flex",
+            )}
+          >
+            Zaloguj
+          </Link>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-green-soft text-sm font-semibold text-brand-green-ink">
             KM
           </div>

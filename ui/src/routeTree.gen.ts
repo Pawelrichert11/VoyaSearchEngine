@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SheetsRouteImport } from './routes/sheets'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as GuideRouteImport } from './routes/guide'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
@@ -19,6 +20,11 @@ import { Route as OfferIdRouteImport } from './routes/offer.$id'
 const SheetsRoute = SheetsRouteImport.update({
   id: '/sheets',
   path: '/sheets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuideRoute = GuideRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/guide': typeof GuideRoute
+  '/login': typeof LoginRoute
   '/sheets': typeof SheetsRoute
   '/offer/$id': typeof OfferIdRoute
   '/results/$id': typeof ResultsIdRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/guide': typeof GuideRoute
+  '/login': typeof LoginRoute
   '/sheets': typeof SheetsRoute
   '/offer/$id': typeof OfferIdRoute
   '/results/$id': typeof ResultsIdRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/guide': typeof GuideRoute
+  '/login': typeof LoginRoute
   '/sheets': typeof SheetsRoute
   '/offer/$id': typeof OfferIdRoute
   '/results/$id': typeof ResultsIdRoute
@@ -75,14 +84,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/alerts' | '/guide' | '/sheets' | '/offer/$id' | '/results/$id'
+    | '/'
+    | '/alerts'
+    | '/guide'
+    | '/login'
+    | '/sheets'
+    | '/offer/$id'
+    | '/results/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/alerts' | '/guide' | '/sheets' | '/offer/$id' | '/results/$id'
+  to:
+    | '/'
+    | '/alerts'
+    | '/guide'
+    | '/login'
+    | '/sheets'
+    | '/offer/$id'
+    | '/results/$id'
   id:
     | '__root__'
     | '/'
     | '/alerts'
     | '/guide'
+    | '/login'
     | '/sheets'
     | '/offer/$id'
     | '/results/$id'
@@ -92,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlertsRoute: typeof AlertsRoute
   GuideRoute: typeof GuideRoute
+  LoginRoute: typeof LoginRoute
   SheetsRoute: typeof SheetsRoute
   OfferIdRoute: typeof OfferIdRoute
   ResultsIdRoute: typeof ResultsIdRoute
@@ -104,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/sheets'
       fullPath: '/sheets'
       preLoaderRoute: typeof SheetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guide': {
@@ -148,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlertsRoute: AlertsRoute,
   GuideRoute: GuideRoute,
+  LoginRoute: LoginRoute,
   SheetsRoute: SheetsRoute,
   OfferIdRoute: OfferIdRoute,
   ResultsIdRoute: ResultsIdRoute,
