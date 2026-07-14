@@ -6,7 +6,7 @@
 
 const GIS_SRC = "https://accounts.google.com/gsi/client";
 
-export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+export const GOOGLE_CLIENT_ID = import.meta.env.VOYA_GOOGLE_CLIENT_ID as string | undefined;
 
 export type GoogleProfile = {
   sub: string;
@@ -80,7 +80,7 @@ export async function requestGoogleProfile(): Promise<{
 }> {
   if (!GOOGLE_CLIENT_ID) {
     throw new Error(
-      "Brak VITE_GOOGLE_CLIENT_ID. Dodaj Client ID z Google Cloud Console do pliku ui/.env i zrestartuj serwer dev.",
+      "Brak VOYA_GOOGLE_CLIENT_ID. Dodaj Client ID z Google Cloud Console do pliku ui/.env i zrestartuj serwer dev.",
     );
   }
   await loadGis();

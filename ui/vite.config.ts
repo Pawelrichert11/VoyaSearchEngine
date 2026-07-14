@@ -205,6 +205,10 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    // Expose both the default VITE_ prefix and our project's VOYA_ prefix
+    // to import.meta.env. Works for values from .env files AND from the
+    // shell environment (e.g. an export in ~/.zshrc).
+    envPrefix: ["VITE_", "VOYA_"],
     plugins: [voyaSearchApiPlugin()],
   },
 });

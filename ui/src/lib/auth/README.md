@@ -35,7 +35,7 @@ layer.
    [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
 2. Add `http://localhost:3000` (and your prod origin) to **Authorized JavaScript
    origins**.
-3. `cp .env.example .env` and set `VITE_GOOGLE_CLIENT_ID`.
+3. `cp .env.example .env` and set `VOYA_GOOGLE_CLIENT_ID`.
 4. Restart `npm run dev`.
 
 ## Migrating to a real backend (better-auth)
