@@ -28,10 +28,10 @@ export function TopBar() {
   const { data: session } = authClient.useSession();
   const nav = [
     { to: "/", label: "Szukaj" },
-    { to: "/sheets", label: "Moje katalogi" },
-    { to: "/alerts", label: "Alerty" },
+    { to: "/sheets", label: "Moje katalogi", requiresAuth: true },
+    { to: "/alerts", label: "Alerty", requiresAuth: true },
     { to: "/guide", label: "Przewodnik" },
-  ];
+  ].filter((n) => !n.requiresAuth || session);
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
@@ -66,14 +66,16 @@ export function TopBar() {
           })}
         </nav>
         <div className="flex items-center gap-2">
-          <Link
-            to="/alerts"
-            className={cn(voyaButtonVariants({ variant: "outline", size: "icon" }), "relative")}
-            aria-label="Alerty"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-green" />
-          </Link>
+          {session && (
+            <Link
+              to="/alerts"
+              className={cn(voyaButtonVariants({ variant: "outline", size: "icon" }), "relative")}
+              aria-label="Alerty"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-green" />
+            </Link>
+          )}
           {session ? (
             <DropdownMenu>
               <DropdownMenuTrigger

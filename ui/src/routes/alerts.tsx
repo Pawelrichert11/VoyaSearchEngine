@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Bell, Mail, Plus, Smartphone, TrendingDown, TrendingUp, X } from "lucide-react";
 import { CountryFlag } from "@/components/voya/CountryFlag";
 import { TopBar } from "@/components/voya/TopBar";
+import { RequireAuth } from "@/components/voya/RequireAuth";
 import { DEMO_ALERTS, type PriceAlert } from "@/lib/voya-data";
 
 export const Route = createFileRoute("/alerts")({
@@ -20,6 +21,14 @@ export const Route = createFileRoute("/alerts")({
 });
 
 function AlertsPage() {
+  return (
+    <RequireAuth>
+      <AlertsPageContent />
+    </RequireAuth>
+  );
+}
+
+function AlertsPageContent() {
   const [alerts, setAlerts] = useState<PriceAlert[]>(DEMO_ALERTS);
   const [open, setOpen] = useState(false);
 

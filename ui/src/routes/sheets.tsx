@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Users } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
+import { RequireAuth } from "@/components/voya/RequireAuth";
 import { DEMO_SHEETS } from "@/lib/voya-data";
 
 export const Route = createFileRoute("/sheets")({
@@ -32,6 +33,14 @@ const statusMeta = {
 } as const;
 
 function SheetsList() {
+  return (
+    <RequireAuth>
+      <SheetsListContent />
+    </RequireAuth>
+  );
+}
+
+function SheetsListContent() {
   return (
     <div className="min-h-screen bg-background">
       <TopBar />
