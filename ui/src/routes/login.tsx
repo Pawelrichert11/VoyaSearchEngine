@@ -1,8 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
-import { Check, Eye, EyeOff, Lock, Mail, Sparkles, User } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import { AlertCircle, Check, Eye, EyeOff, Loader2, Lock, Mail, Sparkles, User } from "lucide-react";
 import { RotatingHero } from "@/components/voya/RotatingHero";
 import { voyaSegmentVariants } from "@/components/voya/style-system";
+import { authClient } from "@/lib/auth/auth-client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
@@ -41,20 +42,41 @@ const copy = {
 } as const;
 
 function LoginPage() {
+  const navigate = useNavigate();
+  const { data: session } = authClient.useSession();
   const [mode, setMode] = useState<Mode>("login");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [pending, setPending] = useState<null | "google" | "email">(null);
+  const [error, setError] = useState<string | null>(null);
 
   const isLogin = mode === "login";
   const t = copy[mode];
 
-  const handleSubmit = (e: FormEvent) => {
+  // Already signed in -> leave the login page.
+  useEffect(() => {
+    if (session) navigate({ to: "/" });
+  }, [session, navigate]);
+
+  const handleGoogle = async () => {
+    setError(null);
+    setPending("google");
+    const { error } = await authClient.signIn.social({ provider: "google" });
+    setPending(null);
+    if (error) setError(error.message);
+    else navigate({ to: "/" });
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // TODO: wire up to auth backend
-    console.log({ mode, name, email, password, remember });
+    setError(null);
+    setPending("email");
+    const { error } = await authClient.signIn.email();
+    setPending(null);
+    if (error) setError(error.message);
   };
 
   return (
@@ -112,11 +134,24 @@ function LoginPage() {
           {/* Google */}
           <button
             type="button"
-            className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+            onClick={handleGoogle}
+            disabled={pending !== null}
+            className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <GoogleIcon />
+            {pending === "google" ? (
+              <Loader2 className="h-[1.15rem] w-[1.15rem] animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
             {t.google}
           </button>
+
+          {error && (
+            <div className="mt-3 flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
           {/* Divider */}
           <div className="my-5 flex items-center gap-3.5">
@@ -204,23 +239,13 @@ function LoginPage() {
 
             <button
               type="submit"
-              className="mt-1.5 h-12 w-full rounded-full bg-foreground font-display text-[0.95rem] font-semibold text-background shadow-pop transition hover:brightness-110"
+              disabled={pending !== null}
+              className="mt-1.5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground font-display text-[0.95rem] font-semibold text-background shadow-pop transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {pending === "email" && <Loader2 className="h-4 w-4 animate-spin" />}
               {t.submit}
             </button>
           </form>
-
-          {/* Footer */}
-          <p className="mt-5 text-center text-sm text-muted-foreground">
-            {t.footerPrompt}{" "}
-            <button
-              type="button"
-              onClick={() => setMode(isLogin ? "signup" : "login")}
-              className="font-semibold text-brand-blue-ink hover:text-brand-blue"
-            >
-              {t.footerAction}
-            </button>
-          </p>
         </div>
       </div>
     </div>

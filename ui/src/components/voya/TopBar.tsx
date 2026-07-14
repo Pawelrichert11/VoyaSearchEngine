@@ -1,10 +1,31 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, Sparkles } from "lucide-react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Bell, LogOut, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { voyaButtonVariants } from "@/components/voya/style-system";
+import { authClient } from "@/lib/auth/auth-client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 export function TopBar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const { data: session } = authClient.useSession();
   const nav = [
     { to: "/", label: "Szukaj" },
     { to: "/sheets", label: "Moje katalogi" },
@@ -53,18 +74,53 @@ export function TopBar() {
             <Bell className="h-4 w-4" />
             <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand-green" />
           </Link>
-          <Link
-            to="/login"
-            className={cn(
-              voyaButtonVariants({ variant: "primary", size: "md" }),
-              "hidden sm:inline-flex",
-            )}
-          >
-            Zaloguj
-          </Link>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-green-soft text-sm font-semibold text-brand-green-ink">
-            KM
-          </div>
+          {session ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-green-soft text-sm font-semibold text-brand-green-ink outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Konto"
+              >
+                {session.user.image ? (
+                  <img
+                    src={session.user.image}
+                    alt={session.user.name}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  initials(session.user.name)
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="flex flex-col gap-0.5">
+                  <span className="truncate font-semibold">{session.user.name}</span>
+                  <span className="truncate text-xs font-normal text-muted-foreground">
+                    {session.user.email}
+                  </span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await authClient.signOut();
+                    navigate({ to: "/" });
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Wyloguj się
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link
+              to="/login"
+              className={cn(
+                voyaButtonVariants({ variant: "primary", size: "md" }),
+                "hidden sm:inline-flex",
+              )}
+            >
+              Zaloguj
+            </Link>
+          )}
         </div>
       </div>
     </header>
