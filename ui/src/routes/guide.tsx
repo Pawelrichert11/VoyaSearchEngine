@@ -160,7 +160,7 @@ const GUIDE_CITIES: GuideCity[] = [
     country: "Chorwacja",
     flag: "🇭🇷",
     image:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Split_080620-133710-IMG_0968x.jpg/1200px-Split_080620-133710-IMG_0968x.jpg",
+      "https://images.pexels.com/photos/28142401/pexels-photo-28142401.jpeg?auto=compress&cs=tinysrgb&w=1200",
     bestFor: "morze, wyspy, stare miasto",
     time: "3-6 dni",
     intro: "Dobra baza na Dalmację: antyczne centrum, port i szybkie promy na wyspy.",

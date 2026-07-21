@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Building2, ChevronDown, ChevronUp, Compass, Lock, Minus, Plane, Plus } from "lucide-react";
+import { Building2, ChevronDown, ChevronUp, Compass, Lock, Plane } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { Vibe } from "@/lib/voya-data";
+import { StarThresholdPicker } from "@/components/voya/StarThresholdPicker";
 import { VibePill } from "@/components/voya/VibePill";
 import { voya, voyaButtonVariants, voyaSegmentVariants } from "@/components/voya/style-system";
 
@@ -17,11 +18,9 @@ export function SearchFilterPanel({
   grouped,
   hotelStars,
   lodgingTypeIds,
-  reviewScore,
   selected,
   selectedSports,
   setHotelStars,
-  setReviewScore,
   setSportsOpen,
   sportOptions,
   toMode,
@@ -32,11 +31,9 @@ export function SearchFilterPanel({
   grouped: Record<string, Vibe[]>;
   hotelStars: number | null;
   lodgingTypeIds: string[];
-  reviewScore: number | null;
   selected: string[];
   selectedSports: string[];
   setHotelStars: (value: number | null) => void;
-  setReviewScore: (value: number | null) => void;
   setSportsOpen: (value: boolean) => void;
   sportOptions: SportOption[];
   toMode: DestinationMode;
@@ -148,24 +145,11 @@ export function SearchFilterPanel({
                   selected={selected}
                   toggle={toggle}
                 />
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                  <NumberThresholdPicker
-                    title="Liczba gwiazdek"
-                    value={hotelStars}
-                    suffix="gwiazdek+"
-                    min={1}
-                    max={5}
-                    onChange={setHotelStars}
-                  />
-                  <NumberThresholdPicker
-                    title="Opinie"
-                    value={reviewScore}
-                    suffix="/10+"
-                    min={1}
-                    max={10}
-                    onChange={setReviewScore}
-                  />
-                </div>
+                <StarThresholdPicker
+                  value={hotelStars}
+                  onChange={setHotelStars}
+                  className="md:max-w-sm"
+                />
               </div>
             )}
 
@@ -251,59 +235,6 @@ function LabeledFilterChipCloud({
     <div className="space-y-1.5">
       <div className={voya.chipLabel}>{label}</div>
       <FilterChipCloud pills={pills} selected={selected} toggle={toggle} />
-    </div>
-  );
-}
-
-function NumberThresholdPicker({
-  title,
-  value,
-  suffix,
-  min,
-  max,
-  onChange,
-}: {
-  title: string;
-  value: number | null;
-  suffix: string;
-  min: number;
-  max: number;
-  onChange: (value: number | null) => void;
-}) {
-  const current = value ?? min;
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/70 px-3 py-2">
-      <div className="min-w-0">
-        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </div>
-        <div className="mt-0.5 text-sm font-semibold">
-          {value === null ? "Dowolnie" : `${value}${suffix}`}
-        </div>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() =>
-            onChange(value === null || value <= min ? null : Math.max(min, current - 1))
-          }
-          disabled={value === null}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-35"
-          aria-label={`Zmniejsz: ${title}`}
-        >
-          <Minus className="h-3.5 w-3.5" />
-        </button>
-        <span className="w-9 text-center text-sm font-semibold">{value ?? "-"}</span>
-        <button
-          type="button"
-          onClick={() => onChange(Math.min(max, value === null ? min : current + 1))}
-          disabled={value !== null && value >= max}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-35"
-          aria-label={`Zwiększ: ${title}`}
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
-      </div>
     </div>
   );
 }

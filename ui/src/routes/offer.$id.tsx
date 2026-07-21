@@ -121,7 +121,7 @@ function OfferDetail() {
                     <div className="text-xs text-muted-foreground">{offer.origin}</div>
                   </div>
                   <div className="text-center text-xs text-muted-foreground">
-                    <div>{offer.days || "-"} dni</div>
+                    <div>{formatNights(offer)}</div>
                     <div className="my-1 h-px bg-border" />
                     <div>
                       {offer.depart} → {offer.returnDate}
@@ -235,6 +235,29 @@ function External({
 function formatPrice(value: number) {
   if (!value) return "-";
   return `${Math.round(value).toLocaleString("pl-PL")} zl`;
+}
+
+function formatNights(offer: VoyaResultRow) {
+  const nights =
+    offer.nights > 0
+      ? offer.nights
+      : offer.days > 0
+        ? Math.max(1, offer.days - 1)
+        : offer.source === "demo"
+          ? 7
+          : 0;
+  if (!nights) return "-";
+  const lastTwoDigits = nights % 100;
+  const lastDigit = nights % 10;
+  const suffix =
+    nights === 1
+      ? "noc"
+      : lastTwoDigits >= 12 && lastTwoDigits <= 14
+        ? "nocy"
+        : lastDigit >= 2 && lastDigit <= 4
+          ? "noce"
+          : "nocy";
+  return `${nights} ${suffix}`;
 }
 
 function poolText(pool: VoyaResultRow["pool"]) {

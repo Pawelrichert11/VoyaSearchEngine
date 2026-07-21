@@ -10,7 +10,6 @@ import {
   Minus,
   Plus,
   Search,
-  Sparkles,
   Users,
   X,
 } from "lucide-react";
@@ -203,7 +202,6 @@ function SearchHome() {
 
   // Hotel
   const [hotelStars, setHotelStars] = useState<number | null>(null);
-  const [reviewScore, setReviewScore] = useState<number | null>(null);
 
   // Aktywnie
   const [sportsOpen, setSportsOpen] = useState(false);
@@ -267,17 +265,13 @@ function SearchHome() {
         <RotatingHero />
         <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-10 sm:px-6 sm:pt-16">
           <div className="mx-auto max-w-4xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5 text-brand-blue" />
-              AI dopasuje trip z opisu albo filtrów
-            </span>
-            <h1 className="mt-5 font-display text-4xl font-bold leading-[1.12] tracking-tight sm:text-6xl">
+            <h1 className="font-display text-4xl font-bold leading-[1.12] tracking-tight sm:text-6xl">
               Opisz trip,
               <br />a Voya znajdzie lot + nocleg
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Opisz wyjazd jednym zdaniem albo ustaw filtry ręcznie. Voya porówna loty i noclegi
-              w katalogu, który możesz sortować, komentować i udostępnić ekipie.
+              Opisz wyjazd jednym zdaniem albo ustaw filtry ręcznie. Voya porówna loty i noclegi w
+              katalogu, który możesz sortować, komentować i udostępnić ekipie.
             </p>
           </div>
 
@@ -353,11 +347,9 @@ function SearchHome() {
                       grouped={grouped}
                       hotelStars={hotelStars}
                       lodgingTypeIds={LODGING_TYPES}
-                      reviewScore={reviewScore}
                       selected={selected}
                       selectedSports={selectedSports}
                       setHotelStars={setHotelStars}
-                      setReviewScore={setReviewScore}
                       setSportsOpen={setSportsOpen}
                       sportOptions={SPORT_OPTIONS}
                       toMode={toMode}
@@ -585,7 +577,7 @@ const DESTINATION_IMAGES: Record<string, string> = {
   Lizbona:
     "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?auto=format&fit=crop&w=720&q=75",
   Split:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Split_080620-133710-IMG_0968x.jpg/1200px-Split_080620-133710-IMG_0968x.jpg",
+    "https://images.pexels.com/photos/28142401/pexels-photo-28142401.jpeg?auto=compress&cs=tinysrgb&w=720",
   "Kreta — Chania":
     "https://images.unsplash.com/photo-1601581875039-e899893d520c?auto=format&fit=crop&w=720&q=75",
 };

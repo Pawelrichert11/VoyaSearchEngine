@@ -159,6 +159,9 @@ export function toVoyaResult(row: BackendOffer, index: number): VoyaResultRow {
   const rawCountry = row.country || "";
   const country = COUNTRY_NAMES[rawCountry] ?? rawCountry;
   const total = numberValue(row.total);
+  const days = numberValue(row.days);
+  const providedNights = numberValue(row.nights);
+  const nights = providedNights > 0 ? providedNights : Math.max(0, days - 1);
   const pool: VoyaResultRow["pool"] =
     row.has_outdoor_pool === true ? "yes" : row.has_outdoor_pool === false ? "no" : "unknown";
   const vibes = [
@@ -175,7 +178,7 @@ export function toVoyaResult(row: BackendOffer, index: number): VoyaResultRow {
     hotel: row.hotel_name || "Hotel / apartament",
     hotelStars: Math.max(0, Math.round(numberValue(row.stars))),
     flight: `${row.origin_iata || row.origin || "?"} → ${row.dest_iata || row.dest_name || "?"}`,
-    dates: `${shortDate(row.depart)} → ${shortDate(row.return)}${row.days ? ` · ${row.days} dni` : ""}`,
+    dates: `${shortDate(row.depart)} → ${shortDate(row.return)}${nights ? ` · ${nights} nocy` : ""}`,
     price: Math.round(total || numberValue(row.hotel_price) + numberValue(row.flight_price)),
     currency: "PLN",
     match: matchScore(row),
@@ -190,8 +193,8 @@ export function toVoyaResult(row: BackendOffer, index: number): VoyaResultRow {
     country,
     depart: row.depart || "",
     returnDate: row.return || "",
-    days: numberValue(row.days),
-    nights: numberValue(row.nights),
+    days,
+    nights,
     flightPrice: numberValue(row.flight_price),
     hotelPrice: numberValue(row.hotel_price),
     hotelArea: row.hotel_area || "",

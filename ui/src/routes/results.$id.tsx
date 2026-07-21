@@ -14,17 +14,22 @@ import {
   RefreshCw,
   Share2,
   Table2,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   X,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TopBar } from "@/components/voya/TopBar";
 import { CountryFlag } from "@/components/voya/CountryFlag";
+import { StarThresholdPicker } from "@/components/voya/StarThresholdPicker";
 import { VibePill } from "@/components/voya/VibePill";
 import { voyaButtonVariants } from "@/components/voya/style-system";
 import { cn } from "@/lib/utils";
 import { VIBES, type Vibe } from "@/lib/voya-data";
 import { fetchVoyaOffers, type VoyaResultRow } from "@/lib/voya-search";
+import { authClient } from "@/lib/auth/auth-client";
 
 export const Route = createFileRoute("/results/$id")({
   component: ResultsSheet,
@@ -47,7 +52,7 @@ const rowTone: Record<VoyaResultRow["status"], string> = {
   loved: "bg-brand-green-soft/40 hover:bg-brand-green-soft/60",
   maybe: "bg-brand-yellow-soft/40 hover:bg-brand-yellow-soft/60",
   pending: "hover:bg-muted/40",
-  no: "line-through opacity-50 hover:opacity-70",
+  no: "bg-destructive/10 hover:bg-destructive/15",
 };
 
 const PAGE_SIZE = 5;
@@ -58,9 +63,36 @@ type MapPoint = { x: number; y: number; airport: string };
 type WeatherOption = {
   emoji: string;
   label: string;
-  detail: string;
+  averageTemperature: number;
+  highestTemperature: number;
+  rainyDays: number;
 };
 type PriceSort = "none" | "asc" | "desc";
+type InteractionUser = { id: string; name: string };
+type OfferComment = {
+  id: string;
+  author: InteractionUser;
+  body: string;
+};
+type OfferInteractions = {
+  likes: InteractionUser[];
+  unlikes: InteractionUser[];
+  comments: OfferComment[];
+};
+
+const INTERACTIONS_STORAGE_KEY = "voya.offer-interactions.v1";
+
+function loadStoredInteractions(): Record<string, OfferInteractions> {
+  if (typeof window === "undefined") return {};
+  try {
+    const stored = window.localStorage.getItem(INTERACTIONS_STORAGE_KEY);
+    if (!stored) return {};
+    const parsed = JSON.parse(stored) as Record<string, OfferInteractions>;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 const ORIGIN_POINT: MapPoint = { x: 48, y: 35, airport: "WAW" };
 const MAP_POINTS: Record<string, MapPoint> = {
@@ -72,19 +104,124 @@ const MAP_POINTS: Record<string, MapPoint> = {
   Marrakesz: { x: 24, y: 82, airport: "RAK" },
 };
 
+const DESTINATION_IMAGE_URLS: Record<string, string> = {
+  lisbon:
+    "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?auto=format&fit=crop&w=480&q=75",
+  split:
+    "https://images.pexels.com/photos/28142401/pexels-photo-28142401.jpeg?auto=compress&cs=tinysrgb&w=480",
+  palma:
+    "https://images.pexels.com/photos/32077754/pexels-photo-32077754.jpeg?auto=compress&cs=tinysrgb&w=480",
+  chania:
+    "https://images.unsplash.com/photo-1601581875039-e899893d520c?auto=format&fit=crop&w=480&q=75",
+  valencia:
+    "https://images.unsplash.com/photo-1543783207-ec64e4d95325?auto=format&fit=crop&w=480&q=75",
+  marrakesh:
+    "https://images.pexels.com/photos/20066999/pexels-photo-20066999.jpeg?auto=compress&cs=tinysrgb&w=480",
+  malaga:
+    "https://images.pexels.com/photos/35894600/pexels-photo-35894600.jpeg?auto=compress&cs=tinysrgb&w=480",
+  alicante:
+    "https://images.pexels.com/photos/36006596/pexels-photo-36006596.jpeg?auto=compress&cs=tinysrgb&w=480",
+};
+
+const DESTINATION_IMAGE_ALIASES: Record<string, string> = {
+  lizbona: "lisbon",
+  lisbon: "lisbon",
+  lis: "lisbon",
+  split: "split",
+  spu: "split",
+  "palma de mallorca": "palma",
+  palma: "palma",
+  mallorca: "palma",
+  pmi: "palma",
+  "kreta - chania": "chania",
+  chania: "chania",
+  crete: "chania",
+  chq: "chania",
+  walencja: "valencia",
+  valencia: "valencia",
+  vlc: "valencia",
+  marrakesz: "marrakesh",
+  marrakech: "marrakesh",
+  rak: "marrakesh",
+  malaga: "malaga",
+  "malaga / costa del sol": "malaga",
+  agp: "malaga",
+  alicante: "alicante",
+  "alicante / costa blanca": "alicante",
+  alc: "alicante",
+};
+
+const FALLBACK_DESTINATION_IMAGE =
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=480&q=75";
+
 const WEATHER_OPTIONS: WeatherOption[] = [
-  { emoji: "☀️", label: "Słonecznie", detail: "28°C · bez opadów · UV wysokie" },
-  { emoji: "🌤️", label: "Lekko słonecznie", detail: "24°C · małe zachmurzenie · dobry komfort" },
-  { emoji: "⛅", label: "Częściowe chmury", detail: "22°C · przejaśnienia · wiatr umiarkowany" },
-  { emoji: "🌥️", label: "Pochmurno", detail: "19°C · dużo chmur · niskie UV" },
-  { emoji: "🌧️", label: "Deszcz", detail: "17°C · przelotne opady · parasol wskazany" },
-  { emoji: "⛈️", label: "Burzowo", detail: "26°C · możliwe burze po południu" },
-  { emoji: "🌬️", label: "Wietrznie", detail: "21°C · wiatr 32 km/h · dobre na sporty wodne" },
-  { emoji: "❄️", label: "Śnieg", detail: "-2°C · opady śniegu · warunki zimowe" },
-  { emoji: "🌡️", label: "Upalnie", detail: "34°C · bardzo ciepło · szukaj cienia" },
+  {
+    emoji: "☀️",
+    label: "Słonecznie",
+    averageTemperature: 27,
+    highestTemperature: 31,
+    rainyDays: 0,
+  },
+  {
+    emoji: "🌤️",
+    label: "Lekko słonecznie",
+    averageTemperature: 24,
+    highestTemperature: 28,
+    rainyDays: 1,
+  },
+  {
+    emoji: "⛅",
+    label: "Częściowe chmury",
+    averageTemperature: 21,
+    highestTemperature: 25,
+    rainyDays: 2,
+  },
+  {
+    emoji: "🌥️",
+    label: "Pochmurno",
+    averageTemperature: 19,
+    highestTemperature: 23,
+    rainyDays: 3,
+  },
+  {
+    emoji: "🌧️",
+    label: "Deszcz",
+    averageTemperature: 17,
+    highestTemperature: 21,
+    rainyDays: 5,
+  },
+  {
+    emoji: "⛈️",
+    label: "Burzowo",
+    averageTemperature: 25,
+    highestTemperature: 29,
+    rainyDays: 3,
+  },
+  {
+    emoji: "🌬️",
+    label: "Wietrznie",
+    averageTemperature: 21,
+    highestTemperature: 25,
+    rainyDays: 1,
+  },
+  {
+    emoji: "❄️",
+    label: "Śnieg",
+    averageTemperature: -2,
+    highestTemperature: 1,
+    rainyDays: 4,
+  },
+  {
+    emoji: "🌡️",
+    label: "Upalnie",
+    averageTemperature: 33,
+    highestTemperature: 38,
+    rainyDays: 0,
+  },
 ];
 
 function ResultsSheet() {
+  const { data: session } = authClient.useSession();
   const [rows, setRows] = useState<VoyaResultRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,7 +230,8 @@ function ResultsSheet() {
   const [fullscreen, setFullscreen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [undoRow, setUndoRow] = useState<{ row: VoyaResultRow; index: number } | null>(null);
-  const [comments, setComments] = useState<Record<string, number>>({});
+  const [interactions, setInteractions] =
+    useState<Record<string, OfferInteractions>>(loadStoredInteractions);
   const [commentTarget, setCommentTarget] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
@@ -102,13 +240,16 @@ function ResultsSheet() {
   const [specificPlaces, setSpecificPlaces] = useState<string[]>([]);
   const [filterSelected, setFilterSelected] = useState<string[]>([]);
   const [hotelStars, setHotelStars] = useState<number | null>(null);
-  const [reviewScore, setReviewScore] = useState<number | null>(null);
-  const [countryFilter, setCountryFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [priceSort, setPriceSort] = useState<PriceSort>("none");
   const [viewMode, setViewMode] = useState<"table" | "map">("table");
   const [selectedMapRow, setSelectedMapRow] = useState<string | null>(null);
   const [statusPickerTarget, setStatusPickerTarget] = useState<string | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentUser: InteractionUser = {
+    id: session?.user.id ?? "local-user",
+    name: session?.user.name ?? "Ty",
+  };
 
   const loadRows = async () => {
     setError("");
@@ -144,6 +285,14 @@ function ResultsSheet() {
     [],
   );
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(INTERACTIONS_STORAGE_KEY, JSON.stringify(interactions));
+    } catch {
+      // Reactions still work in memory when browser storage is unavailable.
+    }
+  }, [interactions]);
+
   const availableCountries = useMemo(
     () =>
       Array.from(new Set(rows.map(countryNameForRow).filter(Boolean))).sort((a, b) =>
@@ -155,7 +304,7 @@ function ResultsSheet() {
   const displayRows = useMemo(() => {
     const next = rows.filter((row) => {
       const country = countryNameForRow(row);
-      if (countryFilter !== "all" && country !== countryFilter) return false;
+      if (countryFilter.length > 0 && !countryFilter.includes(country)) return false;
       if (
         destinationMode === "specific" &&
         specificPlaces.length > 0 &&
@@ -164,24 +313,12 @@ function ResultsSheet() {
         return false;
       }
       if (hotelStars !== null && row.hotelStars < hotelStars) return false;
-      if (reviewScore !== null && rowReviewScore(row) < reviewScore) return false;
       return filterSelected.every((id) => rowMatchesFilter(row, id));
     });
 
     if (priceSort === "none") return next;
-    return [...next].sort((a, b) =>
-      priceSort === "asc" ? a.price - b.price : b.price - a.price,
-    );
-  }, [
-    countryFilter,
-    destinationMode,
-    filterSelected,
-    hotelStars,
-    priceSort,
-    reviewScore,
-    rows,
-    specificPlaces,
-  ]);
+    return [...next].sort((a, b) => (priceSort === "asc" ? a.price - b.price : b.price - a.price));
+  }, [countryFilter, destinationMode, filterSelected, hotelStars, priceSort, rows, specificPlaces]);
 
   const visibleRows = displayRows.slice(0, visibleCount);
   const allRowsVisible = displayRows.length > 0 && visibleCount >= displayRows.length;
@@ -195,15 +332,15 @@ function ResultsSheet() {
     filterSelected,
     hotelStars,
     priceSort,
-    reviewScore,
     specificPlaces,
   ]);
 
   useEffect(() => {
-    if (countryFilter !== "all" && !availableCountries.includes(countryFilter)) {
-      setCountryFilter("all");
-    }
-  }, [availableCountries, countryFilter]);
+    setCountryFilter((current) => {
+      const next = current.filter((country) => availableCountries.includes(country));
+      return next.length === current.length ? current : next;
+    });
+  }, [availableCountries]);
 
   const refresh = async () => {
     if (refreshing) return;
@@ -219,6 +356,27 @@ function ResultsSheet() {
 
   const updateStatus = (id: string, status: VoyaResultRow["status"]) =>
     setRows((items) => items.map((row) => (row.id === id ? { ...row, status } : row)));
+  const toggleReaction = (id: string, reaction: "like" | "unlike") => {
+    setInteractions((current) => {
+      const existing = current[id] ?? { likes: [], unlikes: [], comments: [] };
+      const target = reaction === "like" ? existing.likes : existing.unlikes;
+      const isActive = target.some((user) => user.id === currentUser.id);
+      const withoutCurrent = (users: InteractionUser[]) =>
+        users.filter((user) => user.id !== currentUser.id);
+      const nextTarget = isActive
+        ? withoutCurrent(target)
+        : [...withoutCurrent(target), currentUser];
+
+      return {
+        ...current,
+        [id]: {
+          ...existing,
+          likes: reaction === "like" ? nextTarget : withoutCurrent(existing.likes),
+          unlikes: reaction === "unlike" ? nextTarget : withoutCurrent(existing.unlikes),
+        },
+      };
+    });
+  };
   const cyclePriceSort = () =>
     setPriceSort((current) => (current === "none" ? "asc" : current === "asc" ? "desc" : "none"));
   const removeRow = (id: string) => {
@@ -259,8 +417,22 @@ function ResultsSheet() {
   };
   const saveComment = () => {
     if (!commentTarget || !commentDraft.trim()) return;
-    setComments((current) => ({ ...current, [commentTarget]: (current[commentTarget] || 0) + 1 }));
-    closeComment();
+    const targetId = commentTarget;
+    const body = commentDraft.trim();
+    setInteractions((current) => {
+      const existing = current[targetId] ?? { likes: [], unlikes: [], comments: [] };
+      return {
+        ...current,
+        [targetId]: {
+          ...existing,
+          comments: [
+            ...existing.comments,
+            { id: `${Date.now()}-${currentUser.id}`, author: currentUser, body },
+          ],
+        },
+      };
+    });
+    setCommentDraft("");
   };
   return (
     <div
@@ -376,7 +548,7 @@ function ResultsSheet() {
           <>
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1140px] text-sm">
+                <table className="w-full min-w-[1080px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <Th>
@@ -385,15 +557,21 @@ function ResultsSheet() {
                           <CountryColumnFilter
                             countries={availableCountries}
                             selected={countryFilter}
-                            onSelect={setCountryFilter}
+                            onClear={() => setCountryFilter([])}
+                            onToggle={(country) =>
+                              setCountryFilter((current) =>
+                                current.includes(country)
+                                  ? current.filter((item) => item !== country)
+                                  : [...current, country],
+                              )
+                            }
                           />
                         </div>
                       </Th>
                       <Th>Lot</Th>
                       <Th>Hotel</Th>
                       <Th>Pogoda</Th>
-                      <Th>Pasuje</Th>
-                      <Th>Dni</Th>
+                      <Th>Liczba nocy</Th>
                       <Th className="text-right">
                         <button
                           type="button"
@@ -414,6 +592,17 @@ function ResultsSheet() {
                     {visibleRows.map((row) => {
                       const status = statusMeta[row.status];
                       const country = countryNameForRow(row);
+                      const rowInteractions = interactions[row.id] ?? {
+                        likes: [],
+                        unlikes: [],
+                        comments: [],
+                      };
+                      const likedByCurrentUser = rowInteractions.likes.some(
+                        (user) => user.id === currentUser.id,
+                      );
+                      const unlikedByCurrentUser = rowInteractions.unlikes.some(
+                        (user) => user.id === currentUser.id,
+                      );
                       return (
                         <tr
                           key={row.id}
@@ -425,13 +614,18 @@ function ResultsSheet() {
                               params={{ id: row.id }}
                               className="flex items-center gap-3"
                             >
-                              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-xl">
-                                <CountryFlag
-                                  flag={row.flag}
-                                  label={country || row.destination}
-                                  className="h-6 w-8"
-                                />
-                              </span>
+                              <img
+                                src={destinationImageForRow(row)}
+                                alt={`Zdjęcie: ${row.destination}`}
+                                className="h-12 w-16 shrink-0 rounded-xl object-cover shadow-soft"
+                                loading="lazy"
+                                onError={(event) => {
+                                  if (event.currentTarget.dataset.fallbackApplied === "true")
+                                    return;
+                                  event.currentTarget.dataset.fallbackApplied = "true";
+                                  event.currentTarget.src = FALLBACK_DESTINATION_IMAGE;
+                                }}
+                              />
                               <div>
                                 <div className="font-semibold">{row.destination}</div>
                                 <div className="text-xs text-muted-foreground">
@@ -462,28 +656,63 @@ function ResultsSheet() {
                           <Td>
                             <WeatherSummary row={row} />
                           </Td>
-                          <Td>
-                            <MatchSummary row={row} />
-                          </Td>
-                          <Td>{formatDays(row)}</Td>
+                          <Td>{formatNights(row)}</Td>
                           <Td className="text-right">
                             <div className="font-display text-base font-semibold">
                               {formatPrice(row.price)}
                             </div>
-                            <div className="text-[10px] text-muted-foreground">
-                              lot {formatPrice(row.flightPrice)} + hotel{" "}
-                              {formatPrice(row.hotelPrice)}
-                            </div>
                           </Td>
                           <Td>
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-[205px] flex-col items-start gap-1.5">
                               <div className="flex items-center gap-1">
+                                <TooltipProvider delayDuration={200}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="flex h-8 min-w-8 items-center justify-center rounded-full bg-muted px-2 text-xs font-semibold text-muted-foreground hover:bg-brand-blue-soft hover:text-brand-blue-ink"
+                                        aria-label={`${rowInteractions.likes.length} lajków. Pokaż autorów`}
+                                      >
+                                        {rowInteractions.likes.length}
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="top"
+                                      align="start"
+                                      className="w-56 rounded-2xl border border-border bg-card p-3 text-foreground shadow-pop"
+                                    >
+                                      <div className="font-semibold">Lajki</div>
+                                      {rowInteractions.likes.length > 0 ? (
+                                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                          {rowInteractions.likes.map((user) => (
+                                            <li key={user.id}>{user.name}</li>
+                                          ))}
+                                        </ul>
+                                      ) : (
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                          Nikt jeszcze nie dał lajka.
+                                        </div>
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                                 <button
-                                  onClick={() => updateStatus(row.id, "loved")}
-                                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm ${row.status === "loved" ? "bg-brand-green text-white" : "hover:bg-muted"}`}
-                                  aria-label="Bierzemy"
+                                  type="button"
+                                  onClick={() => toggleReaction(row.id, "like")}
+                                  className={`flex h-8 items-center justify-center gap-1 rounded-full px-2 text-xs font-semibold ${likedByCurrentUser ? "bg-brand-green text-white" : "hover:bg-muted"}`}
+                                  aria-label="Like"
+                                  aria-pressed={likedByCurrentUser}
                                 >
-                                  👍
+                                  <ThumbsUp className="h-3.5 w-3.5" /> Like
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleReaction(row.id, "unlike")}
+                                  className={`flex h-8 items-center justify-center gap-1 rounded-full px-2 text-xs font-semibold ${unlikedByCurrentUser ? "bg-brand-pink-soft text-foreground" : "hover:bg-muted"}`}
+                                  aria-label="Unlike"
+                                  aria-pressed={unlikedByCurrentUser}
+                                >
+                                  <ThumbsDown className="h-3.5 w-3.5" /> Unlike
                                 </button>
                                 <Popover
                                   open={commentTarget === row.id}
@@ -494,10 +723,10 @@ function ResultsSheet() {
                                   <PopoverTrigger asChild>
                                     <button
                                       className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 text-sm hover:bg-muted"
-                                      aria-label="Komentarz"
+                                      aria-label="Komentarze"
                                     >
                                       <MessageCircle className="h-3.5 w-3.5" />
-                                      {comments[row.id] ? comments[row.id] : ""}
+                                      {rowInteractions.comments.length || ""}
                                     </button>
                                   </PopoverTrigger>
                                   <PopoverContent
@@ -506,6 +735,7 @@ function ResultsSheet() {
                                     className="w-80 rounded-2xl border-border bg-card p-4 shadow-pop"
                                   >
                                     <CommentEditor
+                                      comments={rowInteractions.comments}
                                       draft={commentDraft}
                                       onCancel={closeComment}
                                       onChange={setCommentDraft}
@@ -513,19 +743,10 @@ function ResultsSheet() {
                                     />
                                   </PopoverContent>
                                 </Popover>
-                                <button
-                                  onClick={() => updateStatus(row.id, "no")}
-                                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm ${row.status === "no" ? "bg-brand-pink-soft" : "hover:bg-muted"}`}
-                                  aria-label="Odpada"
-                                >
-                                  👎
-                                </button>
                               </div>
                               <Popover
                                 open={statusPickerTarget === row.id}
-                                onOpenChange={(open) =>
-                                  setStatusPickerTarget(open ? row.id : null)
-                                }
+                                onOpenChange={(open) => setStatusPickerTarget(open ? row.id : null)}
                               >
                                 <PopoverTrigger asChild>
                                   <button
@@ -580,7 +801,7 @@ function ResultsSheet() {
                     })}
                     {!loading && displayRows.length === 0 && (
                       <tr>
-                        <td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">
+                        <td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">
                           {rows.length === 0
                             ? "Brak ofert w `output/offers.json`."
                             : "Brak ofert pasujących do wybranych filtrów."}
@@ -647,14 +868,12 @@ function ResultsSheet() {
           specificPlaces={specificPlaces}
           selected={filterSelected}
           hotelStars={hotelStars}
-          reviewScore={reviewScore}
           onClose={() => setFiltersOpen(false)}
           onSave={(next) => {
             setDestinationMode(next.destinationMode);
             setSpecificPlaces(next.specificPlaces);
             setFilterSelected(next.selected);
             setHotelStars(next.hotelStars);
-            setReviewScore(next.reviewScore);
             setFiltersOpen(false);
           }}
         />
@@ -674,12 +893,20 @@ function Td({ children, className = "" }: { children?: ReactNode; className?: st
 function CountryColumnFilter({
   countries,
   selected,
-  onSelect,
+  onClear,
+  onToggle,
 }: {
   countries: string[];
-  selected: string;
-  onSelect: (country: string) => void;
+  selected: string[];
+  onClear: () => void;
+  onToggle: (country: string) => void;
 }) {
+  const triggerLabel =
+    selected.length === 0
+      ? "Kraj"
+      : selected.length === 1
+        ? selected[0]
+        : `Kraje: ${selected.length}`;
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -687,12 +914,12 @@ function CountryColumnFilter({
           type="button"
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold normal-case",
-            selected === "all"
+            selected.length === 0
               ? "bg-background text-muted-foreground"
               : "bg-brand-blue-soft text-brand-blue-ink",
           )}
         >
-          {selected === "all" ? "Kraj" : selected}
+          {triggerLabel}
           <ChevronDown className="h-3 w-3" />
         </button>
       </PopoverTrigger>
@@ -702,21 +929,21 @@ function CountryColumnFilter({
       >
         <button
           type="button"
-          onClick={() => onSelect("all")}
+          onClick={onClear}
           className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-muted"
         >
           <span>Wszystkie kraje</span>
-          {selected === "all" && <Check className="h-4 w-4 text-brand-blue" />}
+          {selected.length === 0 && <Check className="h-4 w-4 text-brand-blue" />}
         </button>
         {countries.map((country) => (
           <button
             key={country}
             type="button"
-            onClick={() => onSelect(country)}
+            onClick={() => onToggle(country)}
             className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-muted"
           >
             <span>{country}</span>
-            {selected === country && <Check className="h-4 w-4 text-brand-blue" />}
+            {selected.includes(country) && <Check className="h-4 w-4 text-brand-blue" />}
           </button>
         ))}
       </PopoverContent>
@@ -725,11 +952,13 @@ function CountryColumnFilter({
 }
 
 function CommentEditor({
+  comments,
   draft,
   onCancel,
   onChange,
   onSave,
 }: {
+  comments: OfferComment[];
   draft: string;
   onCancel: () => void;
   onChange: (value: string) => void;
@@ -739,13 +968,23 @@ function CommentEditor({
     <div>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <div className="font-display text-base font-semibold">Komentarz</div>
+          <div className="font-display text-base font-semibold">Komentarze</div>
           <div className="text-xs text-muted-foreground">Dodaj notatkę do oferty.</div>
         </div>
         <button type="button" onClick={onCancel} className="rounded-full p-1.5 hover:bg-muted">
           <X className="h-4 w-4" />
         </button>
       </div>
+      {comments.length > 0 && (
+        <div className="mb-3 max-h-40 space-y-2 overflow-y-auto rounded-2xl bg-muted/60 p-3">
+          {comments.map((comment) => (
+            <div key={comment.id} className="text-xs">
+              <div className="font-semibold text-foreground">{comment.author.name}</div>
+              <div className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{comment.body}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <textarea
         value={draft}
         onChange={(event) => onChange(event.target.value)}
@@ -763,7 +1002,8 @@ function CommentEditor({
         <button
           type="button"
           onClick={onSave}
-          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background"
+          disabled={!draft.trim()}
+          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-40"
         >
           Zapisz
         </button>
@@ -777,6 +1017,18 @@ function normalizeText(value: string) {
     .toLocaleLowerCase("pl")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function destinationImageForRow(row: VoyaResultRow) {
+  for (const identifier of [row.destIata, row.destination]) {
+    const key = normalizeText(identifier || "")
+      .replace(/[–—]/gu, "-")
+      .replace(/\s+/gu, " ")
+      .trim();
+    const canonicalName = DESTINATION_IMAGE_ALIASES[key];
+    if (canonicalName) return DESTINATION_IMAGE_URLS[canonicalName];
+  }
+  return FALLBACK_DESTINATION_IMAGE;
 }
 
 function countryNameForRow(row: VoyaResultRow) {
@@ -814,10 +1066,6 @@ function countryNameForRow(row: VoyaResultRow) {
   return "";
 }
 
-function rowReviewScore(row: VoyaResultRow) {
-  return row.reviewScore || Math.round(row.match / 10);
-}
-
 function rowMatchesFilter(row: VoyaResultRow, id: string) {
   const vibe = VIBES.find((item) => item.id === id);
   const text = normalizeText(
@@ -846,6 +1094,18 @@ function rowMatchesFilter(row: VoyaResultRow, id: string) {
   if (id === "hostel") return text.includes("hostel");
   if (id === "bnb") return text.includes("b&b") || text.includes("pensjonat");
   if (id === "boutique") return text.includes("butik");
+  if (id === "seaview") {
+    return (
+      row.vibes.includes("🌊") ||
+      row.vibes.includes("🏖️") ||
+      text.includes("plaz") ||
+      text.includes("near beach") ||
+      text.includes("beachfront")
+    );
+  }
+  if (id === "safe") {
+    return row.vibes.includes("🛡️") || text.includes("bezpiecz") || text.includes("safe");
+  }
 
   if (!vibe) return true;
   const normalizedLabel = normalizeText(vibe.label);
@@ -857,9 +1117,21 @@ function formatPrice(value: number) {
   return `${Math.round(value).toLocaleString("pl-PL")} zł`;
 }
 
-function formatDays(row: VoyaResultRow) {
-  const days = row.days || row.nights || (row.source === "demo" ? 7 : 0);
-  return days ? `${days} dni` : "-";
+function formatNights(row: VoyaResultRow) {
+  const nights =
+    row.nights || (row.days > 0 ? Math.max(1, row.days - 1) : row.source === "demo" ? 7 : 0);
+  if (!nights) return "-";
+  const lastTwoDigits = nights % 100;
+  const lastDigit = nights % 10;
+  const suffix =
+    nights === 1
+      ? "noc"
+      : lastTwoDigits >= 12 && lastTwoDigits <= 14
+        ? "nocy"
+        : lastDigit >= 2 && lastDigit <= 4
+          ? "noce"
+          : "nocy";
+  return `${nights} ${suffix}`;
 }
 
 function OfferLink({
@@ -890,22 +1162,46 @@ function OfferLink({
 
 function WeatherSummary({ row }: { row: VoyaResultRow }) {
   const weather = getWeatherForRow(row);
+  const averageTemperature = `${weather.averageTemperature}°C`;
+  const highestTemperature = `${weather.highestTemperature}°C`;
   return (
-    <div className="group relative inline-flex" title={`${weather.label}: ${weather.detail}`}>
-      <button
-        type="button"
-        className="flex h-9 min-w-9 items-center justify-center rounded-full bg-muted px-2 text-xl transition-colors hover:bg-brand-yellow-soft"
-        aria-label={`Pogoda: ${weather.label}. ${weather.detail}`}
-      >
-        {weather.emoji}
-      </button>
-      <div className="pointer-events-none absolute left-0 top-11 z-40 w-56 rounded-2xl border border-border bg-card p-3 text-left text-xs opacity-0 shadow-pop transition-opacity group-hover:opacity-100">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{weather.emoji}</span>
-          <div className="font-semibold text-foreground">{weather.label}</div>
-        </div>
-        <div className="mt-1 text-muted-foreground">{weather.detail}</div>
-      </div>
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="flex h-9 min-w-[92px] items-center justify-center gap-1.5 rounded-full bg-muted px-2 text-sm font-semibold transition-colors hover:bg-brand-yellow-soft"
+            aria-label={`Pogoda: ${weather.label}. Dni deszczowe: ${weather.rainyDays}. Średnia temperatura: ${averageTemperature}. Najwyższa temperatura: ${highestTemperature}.`}
+          >
+            <span className="text-xl">{weather.emoji}</span>
+            <span>{averageTemperature}</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          align="start"
+          className="w-64 rounded-2xl border border-border bg-card p-3 text-foreground shadow-pop"
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-xl">{weather.emoji}</span>
+            <span className="font-semibold">{weather.label}</span>
+          </div>
+          <dl className="space-y-1.5 text-xs">
+            <WeatherDetail label="Dni deszczowe" value={`${weather.rainyDays}`} />
+            <WeatherDetail label="Średnia temperatura" value={averageTemperature} />
+            <WeatherDetail label="Najwyższa temperatura" value={highestTemperature} />
+          </dl>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function WeatherDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-semibold">{value}</dd>
     </div>
   );
 }
@@ -913,25 +1209,46 @@ function WeatherSummary({ row }: { row: VoyaResultRow }) {
 function getWeatherForRow(row: VoyaResultRow) {
   const seed = `${row.destination}-${row.dates}-${row.id}`;
   const hash = Array.from(seed).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return WEATHER_OPTIONS[hash % WEATHER_OPTIONS.length];
-}
+  const fallback = WEATHER_OPTIONS[hash % WEATHER_OPTIONS.length];
+  const parsedTemperature = row.weather.match(/-?\d+(?:[.,]\d+)?/u)?.[0]?.replace(",", ".");
+  const averageTemperature = parsedTemperature
+    ? Math.round(Number(parsedTemperature))
+    : fallback.averageTemperature;
+  const description = normalizeText(row.weather);
+  const tripDays = row.days || (row.nights > 0 ? row.nights + 1 : 0);
+  const rainyDays = description.match(/burz|storm|thunder/u)
+    ? 3
+    : description.match(/deszcz|rain|shower/u)
+      ? 4
+      : description.match(/snieg|snow/u)
+        ? 4
+        : description.match(/chmur|cloud/u)
+          ? 2
+          : parsedTemperature
+            ? 0
+            : fallback.rainyDays;
+  const label = description.match(/burz|storm|thunder/u)
+    ? "Burzowo"
+    : description.match(/deszcz|rain|shower/u)
+      ? "Deszcz"
+      : description.match(/snieg|snow/u)
+        ? "Śnieg"
+        : description.match(/chmur|cloud/u)
+          ? "Pochmurno"
+          : description.match(/slon|sun|clear/u)
+            ? "Słonecznie"
+            : fallback.label;
 
-function MatchSummary({ row }: { row: VoyaResultRow }) {
-  const emojis = [
-    row.pool === "yes" ? "🏊" : null,
-    row.hotelStars >= 4 ? "⭐" : null,
-    row.price && row.price <= 2200 ? "💸" : null,
-    row.vibes.slice(0, 2),
-  ]
-    .flat()
-    .filter(Boolean)
-    .slice(0, 4);
-  return (
-    <div className="flex items-center gap-2">
-      <span className="rounded-full bg-muted px-2 py-1 text-sm">{emojis.join(" ") || "✨"}</span>
-      <span className="text-xs font-semibold text-muted-foreground">{row.match}%</span>
-    </div>
-  );
+  return {
+    ...fallback,
+    emoji: row.weatherEmoji || fallback.emoji,
+    label,
+    averageTemperature,
+    highestTemperature: parsedTemperature
+      ? averageTemperature + (averageTemperature >= 30 ? 5 : 4)
+      : fallback.highestTemperature,
+    rainyDays: tripDays > 0 ? Math.min(rainyDays, tripDays) : rainyDays,
+  };
 }
 
 function FlightMap({
@@ -1147,60 +1464,11 @@ function MapLabel({ left, top, label }: { left: number; top: number; label: stri
   );
 }
 
-function NumberThresholdMini({
-  title,
-  value,
-  suffix,
-  min,
-  max,
-  onChange,
-}: {
-  title: string;
-  value: number | null;
-  suffix: string;
-  min: number;
-  max: number;
-  onChange: (value: number | null) => void;
-}) {
-  const current = value ?? min;
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-3 py-2">
-      <div>
-        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </div>
-        <div className="text-sm font-semibold">
-          {value === null ? "Dowolnie" : `${value}${suffix}`}
-        </div>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => onChange(value === null || value <= min ? null : current - 1)}
-          disabled={value === null}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-border disabled:opacity-35"
-        >
-          -
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(Math.min(max, value === null ? min : current + 1))}
-          disabled={value !== null && value >= max}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-border disabled:opacity-35"
-        >
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function SheetFiltersModal({
   destinationMode,
   specificPlaces,
   selected,
   hotelStars,
-  reviewScore,
   onClose,
   onSave,
 }: {
@@ -1208,21 +1476,18 @@ function SheetFiltersModal({
   specificPlaces: string[];
   selected: string[];
   hotelStars: number | null;
-  reviewScore: number | null;
   onClose: () => void;
   onSave: (value: {
     destinationMode: "any" | "specific";
     specificPlaces: string[];
     selected: string[];
     hotelStars: number | null;
-    reviewScore: number | null;
   }) => void;
 }) {
   const [nextDestinationMode, setNextDestinationMode] = useState(destinationMode);
   const [nextPlaces, setNextPlaces] = useState(specificPlaces);
   const [nextSelected, setNextSelected] = useState(selected);
   const [nextStars, setNextStars] = useState(hotelStars);
-  const [nextReviews, setNextReviews] = useState(reviewScore);
   const [activeSection, setActiveSection] = useState<"hotel" | "destination">("hotel");
   const allVibes = VIBES;
   const destinationPills = allVibes.filter(
@@ -1303,24 +1568,7 @@ function SheetFiltersModal({
               selected={nextSelected}
               toggle={toggleLocal}
             />
-            <div className="grid gap-2 md:grid-cols-2">
-              <NumberThresholdMini
-                title="Liczba gwiazdek"
-                value={nextStars}
-                suffix="+"
-                min={1}
-                max={5}
-                onChange={setNextStars}
-              />
-              <NumberThresholdMini
-                title="Opinie"
-                value={nextReviews}
-                suffix="/10+"
-                min={1}
-                max={10}
-                onChange={setNextReviews}
-              />
-            </div>
+            <StarThresholdPicker value={nextStars} onChange={setNextStars} />
           </div>
         ) : (
           <div className="space-y-4 rounded-2xl border border-border bg-background p-4">
@@ -1411,7 +1659,6 @@ function SheetFiltersModal({
                 specificPlaces: nextPlaces,
                 selected: nextSelected,
                 hotelStars: nextStars,
-                reviewScore: nextReviews,
               })
             }
             className="rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background"
