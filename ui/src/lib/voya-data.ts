@@ -13,7 +13,6 @@ export const VIBES: Vibe[] = [
   { id: "norain", emoji: "☁️", label: "Bez deszczu", tone: "blue", category: "climate" },
   { id: "snow", emoji: "❄️", label: "Śnieg", tone: "blue", category: "climate" },
   { id: "mountains", emoji: "🏔️", label: "Góry", tone: "green", category: "mood" },
-  { id: "culture", emoji: "🏛️", label: "Kultura", tone: "yellow", category: "mood" },
   { id: "active", emoji: "🏄", label: "Aktywnie", tone: "green", category: "mood" },
   { id: "allinclusive", emoji: "🍹", label: "All inclusive", tone: "pink", category: "stay" },
   { id: "hotel", emoji: "🏨", label: "Hotel", tone: "blue", category: "stay" },

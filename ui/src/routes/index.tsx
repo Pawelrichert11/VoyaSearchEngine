@@ -1,16 +1,32 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
+  ArrowUp,
   CalendarDays,
+  Car,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Coffee,
+  Compass,
   Lock,
   MapPin,
   MessageCircle,
+  Mic,
+  MicOff,
   Minus,
+  PlaneTakeoff,
   Plus,
   Search,
+  Snowflake,
+  Sparkles,
+  Star,
+  UtensilsCrossed,
   Users,
+  Waves,
+  Wifi,
   X,
 } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
@@ -18,8 +34,9 @@ import { CountryFlag } from "@/components/voya/CountryFlag";
 import { RotatingHero } from "@/components/voya/RotatingHero";
 import { SearchFilterPanel, type SearchFilterTab } from "@/components/voya/SearchFilterPanel";
 import { voya } from "@/components/voya/style-system";
+import { RECOMMENDED_OFFERS, type RecommendedAmenity } from "@/lib/recommended-offers";
 import { cn } from "@/lib/utils";
-import { VIBES, DEPARTURE_COUNTRIES, DEMO_RESULTS, type Vibe, type Country } from "@/lib/voya-data";
+import { VIBES, DEPARTURE_COUNTRIES, type Vibe, type Country } from "@/lib/voya-data";
 
 export const Route = createFileRoute("/")({
   component: SearchHome,
@@ -49,7 +66,26 @@ type DestinationSelection = {
   name: string;
 };
 type GuestCounts = { adults: number; children: number; rooms: number };
-type SportOption = { id: string; label: string; places: string[] };
+type SportOption = { id: string; label: string };
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+};
+
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 const DESTINATION_COUNTRIES: DestinationCountry[] = [
   { code: "PT", flag: "🇵🇹", name: "Portugalia", cities: ["Lizbona", "Porto", "Madera", "Algarve"] },
@@ -85,14 +121,30 @@ const DESTINATION_COUNTRIES: DestinationCountry[] = [
 ];
 
 const SPORT_OPTIONS: SportOption[] = [
-  { id: "kitesurfing", label: "Kitesurfing", places: ["Tarifa", "Fuerteventura", "Rodos"] },
-  { id: "windsurfing", label: "Windsurfing", places: ["Vasiliki", "Teneryfa", "Sotavento"] },
-  { id: "surfing", label: "Surfing", places: ["Ericeira", "Bali", "San Sebastián"] },
-  { id: "skiing", label: "Narty", places: ["Alpy", "Dolomity", "Zakopane"] },
-  { id: "diving", label: "Nurkowanie", places: ["Malta", "Kreta", "Bali"] },
-  { id: "trekking", label: "Trekking", places: ["Madera", "Teneryfa", "Sycylia"] },
-  { id: "cycling", label: "Rower", places: ["Majorka", "Algarve", "Istria"] },
+  { id: "kitesurfing", label: "Kitesurfing" },
+  { id: "windsurfing", label: "Windsurfing" },
+  { id: "surfing", label: "Surfing" },
+  { id: "skiing", label: "Narty" },
+  { id: "diving", label: "Nurkowanie" },
+  { id: "trekking", label: "Trekking" },
+  { id: "cycling", label: "Rower" },
 ];
+
+const VIBE_GROUPS = VIBES.reduce<Record<Vibe["category"], Vibe[]>>(
+  (groups, vibe) => {
+    groups[vibe.category].push(vibe);
+    return groups;
+  },
+  {
+    mood: [],
+    climate: [],
+    budget: [],
+    stay: [],
+    ai: [],
+    destination: [],
+    flight: [],
+  },
+);
 
 const MONTH_NAMES = [
   "Styczeń",
@@ -165,14 +217,20 @@ const formatShortDate = (value: string) => {
 
 const monthLabel = (year: number, monthIndex: number) => `${MONTH_NAMES[monthIndex]} ${year}`;
 
+const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
+  if (typeof window === "undefined") return null;
+  const speechWindow = window as typeof window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+};
+
 function SearchHome() {
   const [searchMode, setSearchMode] = useState<SearchMode>("chat");
   const [filterTab, setFilterTab] = useState<SearchFilterTab | null>(null);
   const [tripPrompt, setTripPrompt] = useState("");
   const [selected, setSelected] = useState<string[]>(["pool", "party", "sun", "direct"]);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [customVibes, setCustomVibes] = useState<Vibe[]>([]);
 
   // Skąd
   const [fromOpen, setFromOpen] = useState(false);
@@ -202,32 +260,18 @@ function SearchHome() {
 
   // Hotel
   const [hotelStars, setHotelStars] = useState<number | null>(null);
+  const [hotelMinPrice, setHotelMinPrice] = useState<number | null>(null);
+  const [hotelMaxPrice, setHotelMaxPrice] = useState<number | null>(null);
 
   // Aktywnie
-  const [sportsOpen, setSportsOpen] = useState(false);
   const [selectedSports, setSelectedSports] = useState<string[]>([]);
 
-  const allVibes = useMemo(() => [...VIBES, ...customVibes], [customVibes]);
-  const grouped = useMemo(() => {
-    const g: Record<string, Vibe[]> = {
-      mood: [],
-      climate: [],
-      budget: [],
-      stay: [],
-      ai: [],
-      destination: [],
-      flight: [],
-    };
-    for (const v of allVibes) g[v.category].push(v);
-    return g;
-  }, [allVibes]);
-
   const toggle = (id: string) => {
-    if (id === "active") {
-      setSportsOpen(true);
-      return;
-    }
-    const exclusiveGroup = ["direct", "onestop"].includes(id) ? ["direct", "onestop"] : null;
+    const exclusiveGroup = ["direct", "onestop"].includes(id)
+      ? ["direct", "onestop"]
+      : ["warm", "snow"].includes(id)
+        ? ["warm", "snow"]
+        : null;
     setSelected((s) => {
       if (exclusiveGroup) {
         return s.includes(id)
@@ -238,16 +282,10 @@ function SearchHome() {
     });
   };
 
-  const addCustom = () => {
-    if (!aiPrompt.trim()) return;
-    const id = `ai-${Date.now()}`;
-    const emoji = "✨";
-    const label = aiPrompt.length > 24 ? aiPrompt.slice(0, 22) + "…" : aiPrompt;
-    setCustomVibes((c) => [...c, { id, emoji, label, tone: "pink", category: "ai" }]);
-    setSelected((s) => [...s, id]);
-    setAiPrompt("");
-    setAiOpen(false);
-  };
+  const toggleSport = (id: string) =>
+    setSelectedSports((current) =>
+      current.includes(id) ? current.filter((sportId) => sportId !== id) : [...current, id],
+    );
 
   const whenLabel =
     dateMode === "exact"
@@ -261,7 +299,7 @@ function SearchHome() {
       <TopBar />
 
       {/* Hero */}
-      <section className="relative overflow-visible">
+      <section className="relative z-20 overflow-visible">
         <RotatingHero />
         <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-10 sm:px-6 sm:pt-16">
           <div className="mx-auto max-w-4xl text-center">
@@ -276,25 +314,25 @@ function SearchHome() {
           </div>
 
           {/* Search card */}
-          <div className="mx-auto mt-10 max-w-5xl">
+          <div className="relative z-50 mx-auto mt-10 max-w-7xl">
             <div className={voya.heroCard}>
-              <div className="mb-3 flex rounded-full bg-muted p-1">
+              <div className="mb-3 flex rounded-lg bg-muted p-1">
                 <button
                   type="button"
                   onClick={() => setSearchMode("chat")}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
                     searchMode === "chat"
                       ? "bg-background text-foreground shadow-soft"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <MessageCircle className="h-4 w-4" />
-                  Chat AI
+                  Chat
                 </button>
                 <button
                   type="button"
                   onClick={() => setSearchMode("filters")}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
                     searchMode === "filters"
                       ? "bg-background text-foreground shadow-soft"
                       : "text-muted-foreground hover:text-foreground"
@@ -311,28 +349,28 @@ function SearchHome() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
                       <Field
-                        icon={<MapPin className="h-4 w-4 text-brand-blue" />}
+                        icon={<MapPin className="h-4 w-4 text-foreground" />}
                         label="Skąd"
                         value={`${fromAirport.name} (${fromAirport.code})`}
                         col="sm:col-span-3"
                         onClick={() => setFromOpen(true)}
                       />
                       <Field
-                        icon={<ArrowRight className="h-4 w-4 text-brand-green" />}
+                        icon={<ArrowRight className="h-4 w-4 text-foreground" />}
                         label="Dokąd"
                         value={toLabel}
                         col="sm:col-span-4"
                         onClick={() => setToOpen(true)}
                       />
                       <Field
-                        icon={<CalendarDays className="h-4 w-4 text-brand-yellow-ink" />}
+                        icon={<CalendarDays className="h-4 w-4 text-foreground" />}
                         label="Kiedy"
                         value={whenLabel}
                         col="sm:col-span-3"
                         onClick={() => setWhenOpen(true)}
                       />
                       <Field
-                        icon={<Users className="h-4 w-4 text-brand-pink" />}
+                        icon={<Users className="h-4 w-4 text-foreground" />}
                         label="Kto"
                         value={guestsLabel}
                         col="sm:col-span-2"
@@ -344,16 +382,20 @@ function SearchHome() {
                       onTabClick={(tab) =>
                         setFilterTab((current) => (current === tab ? null : tab))
                       }
-                      grouped={grouped}
+                      grouped={VIBE_GROUPS}
+                      hotelMaxPrice={hotelMaxPrice}
+                      hotelMinPrice={hotelMinPrice}
                       hotelStars={hotelStars}
                       lodgingTypeIds={LODGING_TYPES}
                       selected={selected}
                       selectedSports={selectedSports}
+                      setHotelMaxPrice={setHotelMaxPrice}
+                      setHotelMinPrice={setHotelMinPrice}
                       setHotelStars={setHotelStars}
-                      setSportsOpen={setSportsOpen}
                       sportOptions={SPORT_OPTIONS}
                       toMode={toMode}
                       toggle={toggle}
+                      toggleSport={toggleSport}
                     />
                   </div>
                 )}
@@ -363,76 +405,9 @@ function SearchHome() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-6">
+      <section className="relative z-0 mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-6">
         <RecommendedOffers />
       </section>
-
-      {/* AI filter modal */}
-      {aiOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm"
-          onMouseDown={() => setAiOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-pop"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-blue text-xl text-white">
-                  ✨
-                </span>
-                <div>
-                  <div className="font-display text-lg font-semibold">Nowy filtr AI</div>
-                  <div className="text-xs text-muted-foreground">
-                    AI zamieni opis w kryteria wyszukiwania
-                  </div>
-                </div>
-              </div>
-              <button onClick={() => setAiOpen(false)} className="rounded-full p-2 hover:bg-muted">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <textarea
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="np. „stare miasto z bocznymi uliczkami, tanie wino i lokalne bary jazzowe"
-              className="mt-5 h-32 w-full resize-none rounded-2xl border border-border bg-background p-4 text-sm outline-none focus:border-brand-blue"
-            />
-            <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <span>Popularne:</span>
-              {[
-                "digital nomad friendly",
-                "spot na surfing",
-                "kraj bez wizy",
-                "wegańska kuchnia",
-              ].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setAiPrompt(s)}
-                  className="rounded-full bg-muted px-3 py-1 hover:bg-brand-yellow-soft"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                onClick={() => setAiOpen(false)}
-                className="rounded-full border border-border px-4 py-2 text-sm font-medium"
-              >
-                Anuluj
-              </button>
-              <button
-                onClick={addCustom}
-                className="rounded-full bg-brand-blue px-5 py-2 text-sm font-semibold text-white"
-              >
-                Dodaj filtr
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {fromOpen && (
         <FromModal
@@ -466,24 +441,6 @@ function SearchHome() {
           onSave={(nextGuests) => {
             setGuests(nextGuests);
             setGuestsOpen(false);
-          }}
-        />
-      )}
-
-      {sportsOpen && (
-        <SportsModal
-          selected={selectedSports}
-          onClose={() => setSportsOpen(false)}
-          onSave={(sports) => {
-            setSelectedSports(sports);
-            setSelected((current) =>
-              sports.length > 0
-                ? current.includes("active")
-                  ? current
-                  : [...current, "active"]
-                : current.filter((id) => id !== "active"),
-            );
-            setSportsOpen(false);
           }}
         />
       )}
@@ -545,110 +502,421 @@ function TripChatBox({
   prompt: string;
   setPrompt: (value: string) => void;
 }) {
+  const [isListening, setIsListening] = useState(false);
+  const [speechFeedback, setSpeechFeedback] = useState("");
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  useEffect(
+    () => () => {
+      const recognition = recognitionRef.current;
+      if (recognition) {
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        recognition.abort();
+      }
+      recognitionRef.current = null;
+    },
+    [],
+  );
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognition = getSpeechRecognition();
+    if (!SpeechRecognition) {
+      setSpeechFeedback(
+        "Dyktowanie nie jest dostępne w tej przeglądarce. Nadal możesz wpisać opis ręcznie.",
+      );
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    const promptBeforeSpeech = prompt.trim();
+    recognition.lang = "pl-PL";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        transcript += event.results[index]?.[0]?.transcript ?? "";
+      }
+      const spokenText = transcript.trim();
+      if (!spokenText) return;
+      setPrompt([promptBeforeSpeech, spokenText].filter(Boolean).join(" "));
+      setSpeechFeedback("Dodano tekst z mikrofonu.");
+    };
+    recognition.onerror = (event) => {
+      setIsListening(false);
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setSpeechFeedback("Zezwól przeglądarce na dostęp do mikrofonu, aby użyć dyktowania.");
+      } else if (event.error === "no-speech") {
+        setSpeechFeedback("Nie usłyszano mowy. Spróbuj ponownie albo wpisz opis ręcznie.");
+      } else if (event.error === "audio-capture") {
+        setSpeechFeedback("Nie znaleziono działającego mikrofonu.");
+      } else {
+        setSpeechFeedback("Nie udało się uruchomić dyktowania. Możesz wpisać opis ręcznie.");
+      }
+    };
+    recognition.onend = () => {
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      setIsListening(false);
+      setSpeechFeedback((current) =>
+        current === "Nasłuchuję…" ? "Dyktowanie zakończone." : current,
+      );
+    };
+
+    recognitionRef.current = recognition;
+    setSpeechFeedback("Nasłuchuję…");
+    setIsListening(true);
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setIsListening(false);
+      setSpeechFeedback("Nie udało się uruchomić mikrofonu. Możesz wpisać opis ręcznie.");
+    }
+  };
+
   return (
-    <div className="rounded-3xl border border-border bg-background p-3 shadow-soft">
-      <div className="flex items-center gap-3 rounded-2xl bg-card px-3 py-2">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-brand-blue text-white">
+    <div className="rounded-xl border border-border bg-background p-3 shadow-soft">
+      <div className="flex items-center gap-3 rounded-lg bg-card px-3 py-2">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-blue text-white">
           <MessageCircle className="h-4 w-4" />
         </span>
         <input
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
+          aria-label="Opis wyjazdu"
           className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           placeholder="np. Chcemy tani tydzień w czerwcu, ciepło 25°C+, hotel z basenem, dobre opinie, lot bez przesiadek i miasto z plażą."
         />
         <button
           type="button"
+          onClick={toggleListening}
+          aria-label={isListening ? "Zatrzymaj dyktowanie" : "Dyktuj opis wyjazdu"}
+          aria-pressed={isListening}
+          title={isListening ? "Zatrzymaj dyktowanie" : "Dyktuj opis wyjazdu"}
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            isListening
+              ? "border-foreground bg-foreground text-background"
+              : "border-border bg-background text-foreground hover:bg-muted",
+          )}
+        >
+          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+        </button>
+        <button
+          type="button"
           disabled
-          className="inline-flex shrink-0 cursor-not-allowed items-center gap-2 rounded-full bg-muted-foreground px-4 py-2 text-sm font-semibold text-white opacity-70"
+          className="inline-flex shrink-0 cursor-not-allowed items-center gap-2 rounded-lg bg-muted-foreground px-4 py-2 text-sm font-semibold text-white opacity-70"
         >
           <Lock className="h-4 w-4" />
           Wyszukaj
         </button>
       </div>
+      {speechFeedback && (
+        <div className="px-3 pt-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+          {speechFeedback}
+        </div>
+      )}
     </div>
   );
 }
 
-const RECOMMENDED_OFFER_IDS = ["r5", "r1", "r2", "r4"];
-const DESTINATION_IMAGES: Record<string, string> = {
-  Walencja:
-    "https://images.unsplash.com/photo-1543783207-ec64e4d95325?auto=format&fit=crop&w=720&q=75",
-  Lizbona:
-    "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?auto=format&fit=crop&w=720&q=75",
-  Split:
-    "https://images.pexels.com/photos/28142401/pexels-photo-28142401.jpeg?auto=compress&cs=tinysrgb&w=720",
-  "Kreta — Chania":
-    "https://images.unsplash.com/photo-1601581875039-e899893d520c?auto=format&fit=crop&w=720&q=75",
+const INITIAL_RECOMMENDED_COUNT = 12;
+const RECOMMENDED_BATCH_SIZE = 12;
+
+const RECOMMENDED_AMENITIES: Record<
+  RecommendedAmenity,
+  { label: string; Icon: React.ComponentType<{ className?: string }> }
+> = {
+  "air-conditioning": { label: "Klimatyzacja", Icon: Snowflake },
+  "all-inclusive": { label: "All inclusive", Icon: UtensilsCrossed },
+  breakfast: { label: "Śniadanie", Icon: Coffee },
+  parking: { label: "Parking", Icon: Car },
+  pool: { label: "Basen", Icon: Waves },
+  spa: { label: "SPA", Icon: Sparkles },
+  wifi: { label: "Wi-Fi", Icon: Wifi },
 };
 
+function RecommendedOfferGallery({
+  images,
+  hotel,
+  detailId,
+}: {
+  images: readonly string[];
+  hotel: string;
+  detailId: string;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const selectPrevious = () =>
+    setActiveIndex((current) => (current - 1 + images.length) % images.length);
+  const selectNext = () => setActiveIndex((current) => (current + 1) % images.length);
+
+  return (
+    <div className="relative h-[15.5rem] overflow-hidden bg-muted xl:h-full">
+      <img
+        key={images[activeIndex]}
+        src={images[activeIndex]}
+        alt={`Zdjęcie ${activeIndex + 1} z ${images.length} hotelu ${hotel}`}
+        width={1200}
+        height={800}
+        className="absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-300 group-hover:scale-[1.025]"
+        loading="lazy"
+        decoding="async"
+      />
+      <Link
+        to="/offer/$id"
+        params={{ id: detailId }}
+        className="absolute inset-0 z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-white"
+      >
+        <span className="sr-only">Otwórz ofertę hotelu {hotel}</span>
+      </Link>
+
+      <div className="absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 justify-between">
+        <button
+          type="button"
+          onClick={selectPrevious}
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-black/55 text-white shadow-soft backdrop-blur-sm transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          aria-label={`Poprzednie zdjęcie hotelu ${hotel}`}
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={selectNext}
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-black/55 text-white shadow-soft backdrop-blur-sm transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          aria-label={`Następne zdjęcie hotelu ${hotel}`}
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-lg bg-black/55 px-2.5 py-1.5 backdrop-blur-sm">
+        {images.map((image, index) => (
+          <button
+            key={image}
+            type="button"
+            onClick={() => setActiveIndex(index)}
+            className={cn(
+              "h-1.5 rounded-full bg-white/55 transition-[width,background-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+              index === activeIndex ? "w-4 bg-white" : "w-1.5 hover:bg-white/80",
+            )}
+            aria-label={`Pokaż zdjęcie ${index + 1} z ${images.length}`}
+            aria-pressed={index === activeIndex}
+          />
+        ))}
+      </div>
+
+      <span
+        className="absolute right-3 top-3 z-20 rounded-md bg-black/55 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-sm"
+        aria-live="polite"
+      >
+        {activeIndex + 1}/{images.length}
+      </span>
+    </div>
+  );
+}
+
 function RecommendedOffers() {
-  const offers = RECOMMENDED_OFFER_IDS.flatMap((id) => {
-    const offer = DEMO_RESULTS.find((item) => item.id === id);
-    return offer ? [offer] : [];
-  });
+  const [visibleCount, setVisibleCount] = useState(INITIAL_RECOMMENDED_COUNT);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(false);
+  const hasMore = visibleCount < RECOMMENDED_OFFERS.length;
+  const visibleOffers = RECOMMENDED_OFFERS.slice(0, visibleCount);
+
+  useEffect(() => {
+    const updateBackToTop = () => setShowBackToTop(window.scrollY > 1200);
+    updateBackToTop();
+    window.addEventListener("scroll", updateBackToTop, { passive: true });
+    return () => window.removeEventListener("scroll", updateBackToTop);
+  }, []);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+
+    if (!sentinel || !hasMore) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setVisibleCount(RECOMMENDED_OFFERS.length);
+      return;
+    }
+
+    let loadTimer: number | undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || loadingRef.current) return;
+
+        loadingRef.current = true;
+        setIsLoading(true);
+        loadTimer = window.setTimeout(() => {
+          setVisibleCount((current) =>
+            Math.min(current + RECOMMENDED_BATCH_SIZE, RECOMMENDED_OFFERS.length),
+          );
+          loadingRef.current = false;
+          setIsLoading(false);
+        }, 240);
+      },
+      { rootMargin: "320px 0px", threshold: 0.01 },
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+      if (loadTimer !== undefined) window.clearTimeout(loadTimer);
+      loadingRef.current = false;
+    };
+  }, [hasMore, visibleCount]);
+
   return (
     <div className="mt-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl font-bold tracking-tight">Polecane oferty</h2>
           <p className="text-sm text-muted-foreground">
-            Przykładowe kierunki pasujące do aktualnego stylu wyszukiwania.
+            {RECOMMENDED_OFFERS.length} przykładowe oferty pasujące do aktualnego stylu
+            wyszukiwania.
           </p>
         </div>
-        <Link
-          to="/results/$id"
-          params={{ id: "demo" }}
-          className="inline-flex items-center gap-2 rounded-full bg-brand-green px-4 py-2 text-sm font-semibold text-white"
-        >
-          Więcej ofert <ArrowRight className="h-4 w-4" />
-        </Link>
+        <div className="text-xs font-medium text-muted-foreground" aria-live="polite">
+          Wyświetlono {visibleOffers.length} z {RECOMMENDED_OFFERS.length}
+        </div>
       </div>
-      <div className="space-y-3">
-        {offers.map((offer) => (
-          <Link
+      <div className="grid auto-rows-fr gap-4">
+        {visibleOffers.map((offer) => (
+          <article
             key={offer.id}
-            to="/offer/$id"
-            params={{ id: offer.id }}
-            className="grid gap-4 overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-colors hover:border-brand-blue/40 sm:grid-cols-[190px_1fr]"
+            className="group grid h-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-soft transition-[border-color,box-shadow] hover:border-foreground/25 hover:shadow-pop xl:h-[275px] xl:grid-cols-[38.4%_36.2%_25.4%]"
           >
-            <img
-              src={DESTINATION_IMAGES[offer.destination] ?? DESTINATION_IMAGES.Lizbona}
-              alt={offer.destination}
-              className="h-44 w-full object-cover sm:h-full"
-              loading="lazy"
+            <RecommendedOfferGallery
+              images={offer.images}
+              hotel={offer.hotel}
+              detailId={offer.detailId}
             />
-            <div className="grid gap-4 p-4 md:grid-cols-[1fr_auto_auto] md:items-center">
+
+            <div className="flex min-w-0 flex-col p-5 xl:p-6">
               <div>
-                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                  <CountryFlag flag={offer.flag} label={offer.destination} />
-                  <span>{offer.dates}</span>
+                <h3 className="font-display text-xl font-bold leading-tight tracking-tight">
+                  <Link
+                    to="/offer/$id"
+                    params={{ id: offer.detailId }}
+                    className="rounded-sm hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                  >
+                    {offer.hotel}
+                  </Link>
+                </h3>
+                <div
+                  className="mt-2 flex items-center gap-1 text-foreground"
+                  aria-label={`${offer.hotelStars} gwiazdek`}
+                >
+                  {Array.from({ length: offer.hotelStars }, (_, index) => (
+                    <Star key={index} className="h-3.5 w-3.5 fill-current" />
+                  ))}
                 </div>
-                <div className="mt-1 font-display text-xl font-bold">{offer.destination}</div>
-                <div className="text-sm text-muted-foreground">{offer.hotel}</div>
               </div>
-              <div className="rounded-2xl bg-brand-blue-soft px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-wider text-brand-blue-ink">
-                  Konkretny lot
-                </div>
-                <div className="mt-1 text-sm font-semibold">{offer.flight}</div>
-                <div className="text-xs text-muted-foreground">
-                  {Math.round(offer.price * 0.42).toLocaleString("pl-PL")} PLN
-                </div>
+
+              <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                <CountryFlag code={offer.countryCode} label={offer.country} />
+                <span>
+                  {offer.country} / {offer.destination}
+                </span>
               </div>
-              <div className="rounded-2xl bg-brand-green-soft px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-wider text-brand-green-ink">
-                  Konkretny tani nocleg
+
+              <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Udogodnienia hotelu">
+                {offer.amenities.map((amenity) => {
+                  const { Icon, label } = RECOMMENDED_AMENITIES[amenity];
+                  return (
+                    <span
+                      key={amenity}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+                    >
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      {label}
+                    </span>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 grid gap-2 text-sm">
+                <div className="flex items-start gap-2.5">
+                  <PlaneTakeoff className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <span className="text-muted-foreground">Wylot: </span>
+                    <span className="font-semibold">{offer.departure}</span>
+                  </div>
                 </div>
-                <div className="mt-1 text-sm font-semibold">{offer.hotel}</div>
-                <div className="text-xs text-muted-foreground">
-                  {Math.round(offer.price * 0.58).toLocaleString("pl-PL")} PLN
+                <div className="flex items-start gap-2.5">
+                  <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <span className="text-muted-foreground">Termin: </span>
+                    <span className="font-semibold">
+                      {offer.dates} · {offer.nights} nocy
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="font-medium">{offer.flight}</div>
                 </div>
               </div>
             </div>
-          </Link>
+
+            <div className="flex flex-col items-center justify-center border-t border-border p-6 text-center xl:border-l xl:border-t-0">
+              <div className="font-display text-3xl font-bold tracking-tight">
+                {offer.price.toLocaleString("pl-PL")} zł
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">Cena za osobę</div>
+              <Link
+                to="/offer/$id"
+                params={{ id: offer.detailId }}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] hover:-translate-y-0.5 hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              >
+                Zobacz ofertę
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Compass className="h-3.5 w-3.5" />
+                {offer.destination}
+              </div>
+            </div>
+          </article>
         ))}
       </div>
+      <div
+        ref={sentinelRef}
+        className="flex min-h-20 items-center justify-center py-5 text-sm text-muted-foreground"
+        role="status"
+        aria-live="polite"
+      >
+        {hasMore ? (
+          <span className="inline-flex items-center gap-2">
+            <span
+              className={cn("h-1.5 w-1.5 rounded-full bg-brand-blue", isLoading && "animate-pulse")}
+            />
+            {isLoading ? "Wczytuję kolejne oferty…" : "Przewiń niżej po kolejne oferty"}
+          </span>
+        ) : (
+          <span>To już wszystkie {RECOMMENDED_OFFERS.length} oferty.</span>
+        )}
+      </div>
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-3 text-sm font-semibold text-background shadow-pop transition-[opacity,transform] hover:-translate-y-0.5 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          aria-label="Wróć na górę strony"
+        >
+          <ArrowUp className="h-4 w-4" />
+          <span className="hidden sm:inline">Wróć na górę</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -680,7 +948,7 @@ function ModalShell({
             <div className="font-display text-xl font-semibold">{title}</div>
             {subtitle && <div className="text-xs text-muted-foreground">{subtitle}</div>}
           </div>
-          <button onClick={onClose} className="rounded-full p-2 hover:bg-muted">
+          <button onClick={onClose} className="rounded-lg p-2 hover:bg-muted">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -713,7 +981,7 @@ function FromModal({
       subtitle="Najpierw kraj, potem lotnisko"
       onClose={onClose}
     >
-      <div className="mb-4 flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2">
+      <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
         <Search className="h-4 w-4 text-muted-foreground" />
         <input
           value={q}
@@ -732,8 +1000,10 @@ function FromModal({
               <button
                 key={c.code}
                 onClick={() => setCountry(c)}
-                className={`rounded-full px-3 py-1.5 text-left text-sm ${
-                  country.code === c.code ? "bg-brand-blue text-white shadow-pop" : "hover:bg-muted"
+                className={`rounded-md px-3 py-1.5 text-left text-sm ${
+                  country.code === c.code
+                    ? "bg-foreground text-background shadow-pop"
+                    : "hover:bg-muted"
                 }`}
               >
                 <span className="inline-flex items-center gap-2">
@@ -744,9 +1014,9 @@ function FromModal({
             ))}
           </div>
         </div>
-        <div className="rounded-2xl bg-brand-blue-soft/30 p-3">
+        <div className="rounded-lg border border-border bg-background p-3">
           <div className="mb-2 flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-wider text-brand-blue-ink">
+            <div className="text-xs font-semibold uppercase tracking-wider text-foreground">
               Wybierz lotnisko
             </div>
           </div>
@@ -757,8 +1027,10 @@ function FromModal({
                 <button
                   key={a.code}
                   onClick={() => onSelect({ country: country.name, code: a.code, name: a.name })}
-                  className={`flex w-full items-center justify-between rounded-full px-3 py-1.5 text-left text-sm ${
-                    active ? "bg-brand-blue text-white shadow-pop" : "bg-background hover:bg-muted"
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-sm ${
+                    active
+                      ? "bg-foreground text-background shadow-pop"
+                      : "bg-background hover:bg-muted"
                   }`}
                 >
                   <span>{a.name}</span>
@@ -808,6 +1080,10 @@ function ToModal({
         : [...current, item],
     );
   };
+  const selectCityAndClose = (item: DestinationSelection) => {
+    const next = hasSelection(item.id) ? selected : [...selected, item];
+    onSave("specific", next);
+  };
   const removeSelection = (id: string) =>
     setSelected((current) => current.filter((item) => item.id !== id));
 
@@ -821,9 +1097,9 @@ function ToModal({
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           onClick={() => setM("vibe")}
-          className={`rounded-2xl border-2 p-4 text-left ${m === "vibe" ? "border-brand-green bg-brand-green-soft/40" : "border-border hover:bg-muted"}`}
+          className={`rounded-lg border p-4 text-left ${m === "vibe" ? "border-foreground bg-muted" : "border-border hover:bg-muted"}`}
         >
-          <div className="text-2xl">✨</div>
+          <Sparkles className="h-5 w-5" />
           <div className="mt-2 font-semibold">Wszędzie · dopasuj do vibe</div>
           <div className="text-xs text-muted-foreground">
             AI wybierze destynację pasującą do filtrów
@@ -831,9 +1107,9 @@ function ToModal({
         </button>
         <button
           onClick={() => setM("specific")}
-          className={`rounded-2xl border-2 p-4 text-left ${m === "specific" ? "border-brand-blue bg-brand-blue-soft/40" : "border-border hover:bg-muted"}`}
+          className={`rounded-lg border p-4 text-left ${m === "specific" ? "border-foreground bg-muted" : "border-border hover:bg-muted"}`}
         >
-          <div className="text-2xl">📍</div>
+          <MapPin className="h-5 w-5" />
           <div className="mt-2 font-semibold">Konkretne miejsce</div>
           <div className="text-xs text-muted-foreground">Wybierz kraje i miasta</div>
         </button>
@@ -841,7 +1117,7 @@ function ToModal({
 
       {m === "specific" && (
         <div className="mt-4">
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2">
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
               value={q}
@@ -866,8 +1142,8 @@ function ToModal({
                     <div key={c.code} className="flex items-center gap-1">
                       <button
                         onClick={() => setCountry(c)}
-                        className={`min-w-0 flex-1 rounded-full px-3 py-1.5 text-left text-sm ${
-                          active ? "bg-brand-blue-soft text-brand-blue-ink" : "hover:bg-muted"
+                        className={`min-w-0 flex-1 rounded-md px-3 py-1.5 text-left text-sm ${
+                          active ? "bg-muted text-foreground" : "hover:bg-muted"
                         }`}
                       >
                         <span className="inline-flex items-center gap-2">
@@ -884,7 +1160,7 @@ function ToModal({
                         }}
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
                           selectedCountry
-                            ? "border-brand-blue bg-brand-blue text-white shadow-pop"
+                            ? "border-foreground bg-foreground text-background shadow-pop"
                             : "border-border bg-background hover:bg-muted"
                         }`}
                         aria-label={`${selectedCountry ? "Usuń" : "Dodaj"} kraj ${c.name}`}
@@ -901,10 +1177,10 @@ function ToModal({
               </div>
             </div>
 
-            <div className="rounded-2xl bg-brand-blue-soft/30 p-3">
+            <div className="rounded-lg border border-border bg-background p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-brand-blue-ink">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-foreground">
                     Wybierz miejsca
                   </div>
                   <div className="text-sm font-semibold">
@@ -916,9 +1192,9 @@ function ToModal({
                 </div>
                 <button
                   onClick={() => toggleSelection(getDestinationItem(country))}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
                     hasSelection(`country:${country.code}`)
-                      ? "bg-brand-blue text-white shadow-pop"
+                      ? "bg-foreground text-background shadow-pop"
                       : "bg-background hover:bg-muted"
                   }`}
                 >
@@ -932,10 +1208,10 @@ function ToModal({
                   return (
                     <button
                       key={city}
-                      onClick={() => toggleSelection(item)}
-                      className={`flex w-full items-center justify-between rounded-full px-3 py-1.5 text-left text-sm ${
+                      onClick={() => selectCityAndClose(item)}
+                      className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-sm ${
                         active
-                          ? "bg-brand-blue text-white shadow-pop"
+                          ? "bg-foreground text-background shadow-pop"
                           : "bg-background hover:bg-muted"
                       }`}
                     >
@@ -948,7 +1224,7 @@ function ToModal({
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-border bg-background p-3">
+          <div className="mt-4 rounded-lg border border-border bg-background p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Wybrane miejsca
             </div>
@@ -961,13 +1237,21 @@ function ToModal({
               {selected.map((item) => (
                 <span
                   key={item.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs"
+                  className="inline-flex items-center rounded-md bg-muted text-xs"
                 >
-                  <CountryFlag code={item.countryCode} label={item.country} />
-                  {item.type === "country" ? item.name : `${item.name}, ${item.country}`}
                   <button
+                    type="button"
+                    onClick={() => onSave("specific", selected)}
+                    className="inline-flex items-center gap-1 rounded-l-full py-1 pl-3 pr-1 hover:bg-foreground/5"
+                  >
+                    <CountryFlag code={item.countryCode} label={item.country} />
+                    {item.type === "country" ? item.name : `${item.name}, ${item.country}`}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => removeSelection(item.id)}
-                    className="ml-1 rounded-full hover:bg-background"
+                    className="rounded-md p-1.5 hover:bg-background"
+                    aria-label={`Usuń ${item.name}`}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -981,86 +1265,13 @@ function ToModal({
       <div className="mt-6 flex justify-end gap-2">
         <button
           onClick={onClose}
-          className="rounded-full border border-border px-4 py-2 text-sm font-medium"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
         >
           Anuluj
         </button>
         <button
           onClick={() => onSave(m, m === "vibe" ? [] : selected)}
-          className="rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background"
-        >
-          Zapisz
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function SportsModal({
-  selected,
-  onClose,
-  onSave,
-}: {
-  selected: string[];
-  onClose: () => void;
-  onSave: (sports: string[]) => void;
-}) {
-  const [nextSelected, setNextSelected] = useState<string[]>(selected);
-  const toggleSport = (id: string) =>
-    setNextSelected((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
-
-  return (
-    <ModalShell
-      wide
-      title="Aktywnie"
-      subtitle="Wybierz sporty, które mają być dostępne w konkretnym miejscu"
-      onClose={onClose}
-    >
-      <div className="grid gap-2 sm:grid-cols-2">
-        {SPORT_OPTIONS.map((sport) => {
-          const active = nextSelected.includes(sport.id);
-          return (
-            <button
-              key={sport.id}
-              type="button"
-              onClick={() => toggleSport(sport.id)}
-              className={`rounded-2xl border p-4 text-left transition-colors ${
-                active
-                  ? "border-brand-green bg-brand-green-soft/50 shadow-pop"
-                  : "border-border bg-background hover:bg-muted"
-              }`}
-              aria-pressed={active}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="font-semibold">{sport.label}</div>
-                <span
-                  className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                    active ? "border-brand-green bg-brand-green text-white" : "border-border"
-                  }`}
-                >
-                  {active && <Check className="h-3.5 w-3.5" />}
-                </span>
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                Miejsca: {sport.places.join(", ")}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-5 flex justify-end gap-2">
-        <button
-          onClick={onClose}
-          className="rounded-full border border-border px-4 py-2 text-sm font-medium"
-        >
-          Anuluj
-        </button>
-        <button
-          onClick={() => onSave(nextSelected)}
-          className="rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background"
+          className="rounded-lg bg-brand-blue px-5 py-2 text-sm font-semibold text-white hover:brightness-105"
         >
           Zapisz
         </button>
@@ -1117,7 +1328,7 @@ function GuestsModal({
         />
       </div>
 
-      <div className="mt-5 rounded-2xl bg-muted px-4 py-3 text-sm">
+      <div className="mt-5 rounded-lg bg-muted px-4 py-3 text-sm">
         <span className="font-semibold">Podsumowanie: </span>
         {formatGuests(nextGuests)}
       </div>
@@ -1125,13 +1336,13 @@ function GuestsModal({
       <div className="mt-6 flex justify-end gap-2">
         <button
           onClick={onClose}
-          className="rounded-full border border-border px-4 py-2 text-sm font-medium"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
         >
           Anuluj
         </button>
         <button
           onClick={() => onSave(nextGuests)}
-          className="rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background"
+          className="rounded-lg bg-brand-blue px-5 py-2 text-sm font-semibold text-white hover:brightness-105"
         >
           Zapisz
         </button>
@@ -1156,7 +1367,7 @@ function CounterRow({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-background p-4">
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-background p-4">
       <div>
         <div className="font-semibold">{label}</div>
         <div className="text-xs text-muted-foreground">{caption}</div>
@@ -1166,7 +1377,7 @@ function CounterRow({
           type="button"
           onClick={() => onChange(value - 1)}
           disabled={value <= min}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={`Zmniejsz: ${label}`}
         >
           <Minus className="h-4 w-4" />
@@ -1176,7 +1387,7 @@ function CounterRow({
           type="button"
           onClick={() => onChange(value + 1)}
           disabled={value >= max}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={`Zwiększ: ${label}`}
         >
           <Plus className="h-4 w-4" />
@@ -1211,7 +1422,7 @@ function DateRangeCalendar({
   ];
 
   return (
-    <div className="rounded-2xl border border-border bg-background p-3">
+    <div className="rounded-lg border border-border bg-background p-3">
       <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"].map((day) => (
           <span key={day}>{day}</span>
@@ -1231,9 +1442,9 @@ function DateRangeCalendar({
               onClick={() => onSelect(date)}
               className={`aspect-square rounded-xl text-sm font-semibold transition-colors ${
                 isStart || isEnd
-                  ? "bg-brand-blue text-white shadow-pop"
+                  ? "bg-foreground text-background shadow-pop"
                   : inRange
-                    ? "bg-brand-blue-soft text-brand-blue-ink"
+                    ? "bg-muted text-foreground"
                     : "hover:bg-muted"
               }`}
               aria-pressed={activeField === "start" ? isStart : isEnd}
@@ -1311,16 +1522,16 @@ function WhenModal({
       subtitle="Dokładny termin lub elastyczne okno"
       onClose={onClose}
     >
-      <div className="mb-4 flex gap-2 rounded-full bg-muted p-1">
+      <div className="mb-4 flex gap-2 rounded-lg bg-muted p-1">
         <button
           onClick={() => setM("exact")}
-          className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${m === "exact" ? "bg-background shadow-pop" : "text-muted-foreground"}`}
+          className={`flex-1 rounded-md px-4 py-2 text-sm font-semibold ${m === "exact" ? "bg-background shadow-pop" : "text-muted-foreground"}`}
         >
           Dokładne daty
         </button>
         <button
           onClick={() => setM("flex")}
-          className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${m === "flex" ? "bg-background shadow-pop" : "text-muted-foreground"}`}
+          className={`flex-1 rounded-md px-4 py-2 text-sm font-semibold ${m === "flex" ? "bg-background shadow-pop" : "text-muted-foreground"}`}
         >
           Elastyczne
         </button>
@@ -1331,9 +1542,9 @@ function WhenModal({
             <button
               type="button"
               onClick={() => setActiveDateField("start")}
-              className={`rounded-2xl border p-3 text-left ${
+              className={`rounded-lg border p-3 text-left ${
                 activeDateField === "start"
-                  ? "border-brand-blue bg-brand-blue-soft/40"
+                  ? "border-foreground bg-muted"
                   : "border-border bg-background"
               }`}
             >
@@ -1345,9 +1556,9 @@ function WhenModal({
             <button
               type="button"
               onClick={() => setActiveDateField("end")}
-              className={`rounded-2xl border p-3 text-left ${
+              className={`rounded-lg border p-3 text-left ${
                 activeDateField === "end"
-                  ? "border-brand-blue bg-brand-blue-soft/40"
+                  ? "border-foreground bg-muted"
                   : "border-border bg-background"
               }`}
             >
@@ -1363,10 +1574,10 @@ function WhenModal({
                 key={month.value}
                 type="button"
                 onClick={() => setExactMonth(month.value)}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
                   exactMonth === month.value
-                    ? "bg-brand-blue text-white shadow-pop"
-                    : "bg-muted hover:bg-brand-blue-soft"
+                    ? "bg-foreground text-background shadow-pop"
+                    : "bg-muted hover:bg-foreground/10"
                 }`}
               >
                 {month.label.replace(" 2026", "")}
@@ -1396,10 +1607,10 @@ function WhenModal({
                     setFlexYear(year);
                     setSelectedFlexMonths([]);
                   }}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
                     flexYear === year
-                      ? "bg-brand-blue text-white shadow-pop"
-                      : "bg-muted hover:bg-brand-blue-soft"
+                      ? "bg-foreground text-background shadow-pop"
+                      : "bg-muted hover:bg-foreground/10"
                   }`}
                 >
                   {year}
@@ -1420,9 +1631,9 @@ function WhenModal({
                     key={label}
                     type="button"
                     onClick={() => toggleFlexMonth(label)}
-                    className={`rounded-2xl border px-3 py-2 text-left text-sm font-semibold ${
+                    className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold ${
                       active
-                        ? "border-brand-blue bg-brand-blue text-white shadow-pop"
+                        ? "border-foreground bg-foreground text-background shadow-pop"
                         : "border-border bg-background hover:bg-muted"
                     }`}
                     aria-pressed={active}
@@ -1433,7 +1644,7 @@ function WhenModal({
               })}
             </div>
           </div>
-          <div className="rounded-2xl bg-muted px-4 py-3 text-sm">
+          <div className="rounded-lg bg-muted px-4 py-3 text-sm">
             <span className="font-semibold">Wybrane: </span>
             {selectedFlexMonths.length > 0
               ? summarizeList(selectedFlexMonths, 4)
@@ -1442,7 +1653,7 @@ function WhenModal({
           <div>
             <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <span>Liczba nocy</span>
-              <span className="text-brand-blue">{fn}</span>
+              <span className="text-foreground">{fn}</span>
             </div>
             <input
               type="range"
@@ -1450,13 +1661,13 @@ function WhenModal({
               max={21}
               value={fn}
               onChange={(ev) => setFn(+ev.target.value)}
-              className="w-full accent-[oklch(0.62_0.20_245)]"
+              className="w-full accent-foreground"
             />
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <span>Elastyczność</span>
-              <span className="text-brand-green">±{fr} dni</span>
+              <span className="text-foreground">±{fr} dni</span>
             </div>
             <input
               type="range"
@@ -1464,7 +1675,7 @@ function WhenModal({
               max={7}
               value={fr}
               onChange={(ev) => setFr(+ev.target.value)}
-              className="w-full accent-[oklch(0.70_0.18_155)]"
+              className="w-full accent-foreground"
             />
           </div>
         </div>
@@ -1472,7 +1683,7 @@ function WhenModal({
       <div className="mt-6 flex justify-end gap-2">
         <button
           onClick={onClose}
-          className="rounded-full border border-border px-4 py-2 text-sm font-medium"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
         >
           Anuluj
         </button>
@@ -1487,7 +1698,7 @@ function WhenModal({
               flexNights: fn,
             })
           }
-          className="inline-flex items-center gap-1 rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background"
+          className="inline-flex items-center gap-1 rounded-lg bg-brand-blue px-5 py-2 text-sm font-semibold text-white hover:brightness-105"
         >
           <Check className="h-4 w-4" /> Zapisz
         </button>

@@ -240,7 +240,7 @@ function LoginPage() {
             <button
               type="submit"
               disabled={pending !== null}
-              className="mt-1.5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground font-display text-[0.95rem] font-semibold text-background shadow-pop transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-1.5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand-blue font-display text-[0.95rem] font-semibold text-white shadow-pop transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {pending === "email" && <Loader2 className="h-4 w-4 animate-spin" />}
               {t.submit}

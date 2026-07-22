@@ -8,7 +8,7 @@ export function RotatingHero() {
     return () => clearInterval(t);
   }, []);
   return (
-    <div className="pointer-events-none absolute inset-0 -z-0 overflow-hidden">
+    <div className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[110%] overflow-hidden">
       {HERO_IMAGES.map((src, idx) => (
         <img
           key={src}

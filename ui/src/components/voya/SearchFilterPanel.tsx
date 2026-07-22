@@ -3,6 +3,8 @@ import { Building2, ChevronDown, ChevronUp, Compass, Lock, Plane } from "lucide-
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { Vibe } from "@/lib/voya-data";
+import { CompactPriceSlider } from "@/components/voya/CompactPriceSlider";
+import { SportIcon } from "@/components/voya/SportIcon";
 import { StarThresholdPicker } from "@/components/voya/StarThresholdPicker";
 import { VibePill } from "@/components/voya/VibePill";
 import { voya, voyaButtonVariants, voyaSegmentVariants } from "@/components/voya/style-system";
@@ -10,36 +12,47 @@ import { voya, voyaButtonVariants, voyaSegmentVariants } from "@/components/voya
 export type SearchFilterTab = "destination" | "hotel" | "flight";
 
 type DestinationMode = "vibe" | "specific";
-type SportOption = { id: string; label: string; places: string[] };
+type SportOption = { id: string; label: string };
 
 export function SearchFilterPanel({
   activeTab,
   onTabClick,
   grouped,
+  hotelMaxPrice,
+  hotelMinPrice,
   hotelStars,
   lodgingTypeIds,
   selected,
   selectedSports,
+  setHotelMaxPrice,
+  setHotelMinPrice,
   setHotelStars,
-  setSportsOpen,
   sportOptions,
   toMode,
   toggle,
+  toggleSport,
 }: {
   activeTab: SearchFilterTab | null;
   onTabClick: (tab: SearchFilterTab) => void;
   grouped: Record<string, Vibe[]>;
+  hotelMaxPrice: number | null;
+  hotelMinPrice: number | null;
   hotelStars: number | null;
   lodgingTypeIds: string[];
   selected: string[];
   selectedSports: string[];
+  setHotelMaxPrice: (value: number | null) => void;
+  setHotelMinPrice: (value: number | null) => void;
   setHotelStars: (value: number | null) => void;
-  setSportsOpen: (value: boolean) => void;
   sportOptions: SportOption[];
   toMode: DestinationMode;
   toggle: (id: string) => void;
+  toggleSport: (id: string) => void;
 }) {
-  const destinationPills = [...grouped.destination, ...grouped.mood, ...grouped.climate];
+  const destinationPills = [...grouped.destination, ...grouped.mood].filter(
+    (pill) => pill.id !== "active",
+  );
+  const weatherPills = grouped.climate;
   const lodgingPills = grouped.stay.filter((pill) => lodgingTypeIds.includes(pill.id));
   const standardPills = grouped.stay.filter((pill) => !lodgingTypeIds.includes(pill.id));
   const flightPills = grouped.flight;
@@ -47,11 +60,10 @@ export function SearchFilterPanel({
   const openTab = showDestinationTab || activeTab !== "destination" ? activeTab : null;
   const activeLabel =
     openTab === "destination" ? "Destynacja" : openTab === "hotel" ? "Hotel" : "Lot";
-
   return (
-    <div className="relative z-30">
+    <div className="relative z-[70]">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {showDestinationTab && (
             <FilterSegmentButton
               active={activeTab === "destination"}
@@ -77,6 +89,12 @@ export function SearchFilterPanel({
             icon={<Lock className="h-3.5 w-3.5" />}
             label="Własny filtr AI"
           />
+          <CompactPriceSlider
+            minPrice={hotelMinPrice}
+            maxPrice={hotelMaxPrice}
+            onMinPriceChange={setHotelMinPrice}
+            onMaxPriceChange={setHotelMaxPrice}
+          />
         </div>
         <Link
           to="/results/$id"
@@ -91,37 +109,50 @@ export function SearchFilterPanel({
       </div>
 
       {openTab && (
-        <div className={voya.dropdown}>
+        <div className={cn(voya.dropdown, "z-[80]")}>
           <div className={cn(voya.eyebrow, "mb-2.5")}>{activeLabel}</div>
           <div>
             {openTab === "destination" && (
               <div className="space-y-3">
                 {toMode === "vibe" ? (
                   <>
-                    <FilterChipCloud pills={destinationPills} selected={selected} toggle={toggle} />
-                    {selectedSports.length > 0 && (
-                      <div className="grid gap-1.5 md:grid-cols-[130px_1fr] md:items-center">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Sporty
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {selectedSports.map((sportId) => {
-                            const sport = sportOptions.find((option) => option.id === sportId);
-                            if (!sport) return null;
-                            return (
-                              <button
-                                key={sport.id}
-                                type="button"
-                                onClick={() => setSportsOpen(true)}
-                                className="rounded-full bg-brand-green-soft px-3 py-1 font-medium text-brand-green-ink"
-                              >
-                                {sport.label}
-                              </button>
-                            );
-                          })}
-                        </div>
+                    <LabeledFilterChipCloud
+                      label="Charakter miejsca"
+                      pills={destinationPills}
+                      selected={selected}
+                      toggle={toggle}
+                    />
+                    <LabeledFilterChipCloud
+                      label="Pogoda"
+                      pills={weatherPills}
+                      selected={selected}
+                      toggle={toggle}
+                    />
+                    <div className="space-y-1.5">
+                      <div className={voya.chipLabel}>Aktywnie</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {sportOptions.map((sport) => {
+                          const active = selectedSports.includes(sport.id);
+                          return (
+                            <button
+                              key={sport.id}
+                              type="button"
+                              onClick={() => toggleSport(sport.id)}
+                              aria-pressed={active}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+                                active
+                                  ? "border-brand-green/40 bg-brand-green-soft text-brand-green-ink shadow-soft"
+                                  : "border-border bg-background text-foreground hover:bg-muted",
+                              )}
+                            >
+                              <SportIcon id={sport.id} className="h-4 w-4 shrink-0" />
+                              {sport.label}
+                            </button>
+                          );
+                        })}
                       </div>
-                    )}
+                    </div>
                   </>
                 ) : (
                   <div className="px-1 py-2 text-xs text-muted-foreground">
@@ -207,7 +238,7 @@ function FilterChipCloud({
       {pills.map((vibe) => (
         <VibePill
           key={vibe.id}
-          emoji={vibe.emoji}
+          id={vibe.id}
           label={vibe.label}
           tone={vibe.tone}
           active={selected.includes(vibe.id)}

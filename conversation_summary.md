@@ -10,7 +10,6 @@ Projekt `VoyaSearchEngine` powstal jako lokalny system do wyszukiwania ofert wak
 - hotele lub apartamenty,
 - finalna cena wyjazdu,
 - basen w obiekcie,
-- eksport wynikow do Excela,
 - pozniej proste UI do przegladania wynikow.
 
 Wazne: wyeksportowany silnik w tym projekcie zawiera tylko elementy bez AI.
@@ -25,7 +24,7 @@ W folderze `src` sa skrypty do:
 - sprawdzania stron lotow,
 - tekstowej weryfikacji basenu odkrytego,
 - zbierania zdjec hotelu do recznego podgladu,
-- budowania ofert i eksportu do JSON/XLSX.
+- budowania katalogu ofert w JSON.
 
 Nie ma tu modeli jezykowych, vision ani automatycznej oceny "fajnosci" miejsca.
 
@@ -82,12 +81,11 @@ npm run ui:dev
 - `README.md` - opis silnika wyszukiwania bez AI.
 - `package.json` - komendy dla backendu i UI.
 - `src/agoda_search.js` - ograniczony scraper Agody.
-- `src/build_offers.py` - budowanie listy ofert i Excela.
+- `src/build_offers.py` - budowanie listy ofert w JSON.
 - `ui/src/lib/voya-search.ts` - mapowanie danych backendu do UI.
 - `ui/vite.config.ts` - lokalne endpointy `/api/voya/*`.
 - `START_VOYA_UI.bat` / `START_VOYA_UI.ps1` - start UI z dwukliku.
 - `output/offers.json` - plik z ofertami czytany przez UI.
-- `output/offers.xlsx` - Excel z ofertami, jesli zostal wygenerowany.
 
 ## Komendy
 
@@ -141,7 +139,7 @@ Endpoint:
 
 dziala i czyta `output/offers.json`.
 
-Jesli `output/offers.json` nie istnieje, UI pokazuje fallback/demo oraz komunikat, ze trzeba wygenerowac oferty.
+Jesli `output/offers.json` nie istnieje, UI pokazuje fallback/demo bez komunikatu technicznego dla uzytkownika.
 
 ## Decyzje projektowe
 

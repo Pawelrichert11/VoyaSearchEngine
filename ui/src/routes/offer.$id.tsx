@@ -225,7 +225,7 @@ function External({
       href={href}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex items-center gap-1 rounded-full bg-brand-blue text-white ${large ? "px-5 py-2 text-sm font-semibold" : "px-2 py-1 text-xs"}`}
+      className={`inline-flex items-center gap-1 rounded-full bg-brand-blue text-white transition hover:brightness-105 ${large ? "px-5 py-2 text-sm font-semibold" : "px-2 py-1 text-xs"}`}
     >
       {label} <ExternalLink className="h-3 w-3" />
     </a>

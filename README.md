@@ -9,7 +9,7 @@ Projekt nie uzywa modeli jezykowych, vision ani zadnego scoringu AI. Robi tylko:
 - opcjonalne sprawdzenie stron hoteli regexami pod katem basenu odkrytego,
 - policzenie `Cena total = Lot cena + Hotel cena per osoba`,
 - filtrowanie po datach, cenie, liczbie dni i typie obiektu,
-- eksport do JSON/XLSX.
+- zapis gotowego katalogu do JSON.
 
 ## Czego tu nie ma
 
@@ -25,7 +25,6 @@ W PowerShellu:
 ```powershell
 cd "$env:USERPROFILE\Desktop\VoyaSearchEngine"
 npm install
-python -m pip install -r requirements.txt
 ```
 
 Jesli Playwright nie widzi Chrome, ustaw sciezke:
@@ -70,7 +69,7 @@ Albo bez filtra basenu:
 npm run agoda:no-pool-filter
 ```
 
-3. Zbuduj oferty i arkusz:
+3. Zbuduj katalog ofert:
 
 ```powershell
 npm run build
@@ -88,13 +87,12 @@ npm run verify:pools
 npm run photos
 ```
 
-## Przyklad pelnej komendy eksportu
+## Przyklad pelnej komendy budowania katalogu
 
 ```powershell
 python src/build_offers.py `
   --hotel-results output/agoda_results.json `
   --out-json output/offers.json `
-  --out-xlsx output/offers.xlsx `
   --max-total 2500 `
   --return-date 2026-08-08 `
   --min-days 9
@@ -108,7 +106,7 @@ python src/build_offers.py `
   --pool-check output/offers_outdoor_pool_check.json `
   --confirmed-outdoor-only `
   --hotel-only `
-  --out-xlsx output/offers_confirmed_hotels.xlsx
+  --out-json output/offers_confirmed_hotels.json
 ```
 
 ## Uwagi praktyczne

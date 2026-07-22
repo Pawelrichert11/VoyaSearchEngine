@@ -20,7 +20,7 @@ Endpointy MVP
   - maksymalnie 1-2 loty z examples/flights.sample.json,
   - domyslnie 1 flight i 1 scroll Agody,
   - build_offers.py filtruje wynik do max 3000 zl, powrot 2026-08-08, min 9 dni,
-  - zapisuje output/offers.json i output/offers.xlsx.
+  - zapisuje output/offers.json.
 
 Ochrona przed blokada Agody
 - Endpoint ma guard 30 minut w output/.ui-search-last.json.
@@ -47,6 +47,6 @@ Komendy
   npm run ui:build
 
 Uwagi
-- Jesli nie istnieje output/offers.json, UI pokazuje fallback demo i komunikat.
+- Jesli nie istnieje output/offers.json, UI pokazuje fallback demo bez komunikatu technicznego.
 - To jest MVP: filtry sa glownie po danych, ktore mamy w output/offers.json: cena, daty, dni, basen, typ hotelu/apartamentu, linki.
 - UI nadal moze miec stare teksty marketingowe z repo. Warstwa wyszukiwania pod spodem nie uzywa AI.

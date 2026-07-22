@@ -1,6 +1,7 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import type { IncomingMessage } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,7 +23,7 @@ type JsonResponse = {
 
 type MiddlewareServer = {
   middlewares: {
-    use: (handler: (req: any, res: JsonResponse, next: () => void) => void) => void;
+    use: (handler: (req: IncomingMessage, res: JsonResponse, next: () => void) => void) => void;
   };
 };
 
@@ -48,7 +49,7 @@ function loadOffersPayload() {
   };
 }
 
-function readJsonBody(req: NodeJS.ReadableStream): Promise<Record<string, unknown>> {
+function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
     let body = "";
     req.on("data", (chunk) => {
@@ -90,7 +91,9 @@ function runCommand(command: string, args: string[]) {
 }
 
 function chooseLimitedFlights(body: Record<string, unknown>) {
-  const allFlights = JSON.parse(fs.readFileSync(path.join(engineRoot, "examples", "flights.sample.json"), "utf8"));
+  const allFlights = JSON.parse(
+    fs.readFileSync(path.join(engineRoot, "examples", "flights.sample.json"), "utf8"),
+  );
   const limit = Math.max(1, Math.min(Number(body.limitFlights) || 1, 2));
   const origin = String(body.origin || "").toUpperCase();
   const dest = String(body.dest || "").toUpperCase();
@@ -126,7 +129,11 @@ async function runLimitedSearch(body: Record<string, unknown>) {
   const flights = chooseLimitedFlights(body);
   fs.writeFileSync(limitedFlightsPath, JSON.stringify(flights, null, 2), "utf8");
   fs.writeFileSync(searchRunningPath, String(Date.now()), "utf8");
-  fs.writeFileSync(searchGuardPath, JSON.stringify({ startedAt: Date.now(), flights: flights.length }, null, 2), "utf8");
+  fs.writeFileSync(
+    searchGuardPath,
+    JSON.stringify({ startedAt: Date.now(), flights: flights.length }, null, 2),
+    "utf8",
+  );
 
   try {
     const scrolls = Math.max(1, Math.min(Number(body.scrolls) || 1, 3));
@@ -145,8 +152,6 @@ async function runLimitedSearch(body: Record<string, unknown>) {
       agodaOutputPath,
       "--out-json",
       offersPath,
-      "--out-xlsx",
-      path.join(outputDir, "offers.xlsx"),
       "--max-total",
       String(maxTotal),
       "--return-date",

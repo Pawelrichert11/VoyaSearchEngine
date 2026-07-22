@@ -1,10 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Activity,
   ArrowLeft,
+  Building2,
   Check,
   ChevronDown,
+  Cloud,
+  CloudLightning,
+  CloudRain,
+  CloudSun,
+  Compass,
   Filter,
   Map,
   Maximize2,
@@ -13,16 +20,25 @@ import {
   PlaneTakeoff,
   RefreshCw,
   Share2,
+  Snowflake,
+  Sun,
   Table2,
+  ThermometerSun,
   ThumbsDown,
   ThumbsUp,
   Trash2,
+  WalletCards,
+  Wind,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TopBar } from "@/components/voya/TopBar";
 import { CountryFlag } from "@/components/voya/CountryFlag";
+import { OfferMap } from "@/components/voya/OfferMap";
+import { CompactPriceSlider } from "@/components/voya/CompactPriceSlider";
+import { SportIcon } from "@/components/voya/SportIcon";
 import { StarThresholdPicker } from "@/components/voya/StarThresholdPicker";
 import { VibePill } from "@/components/voya/VibePill";
 import { voyaButtonVariants } from "@/components/voya/style-system";
@@ -30,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { VIBES, type Vibe } from "@/lib/voya-data";
 import { fetchVoyaOffers, type VoyaResultRow } from "@/lib/voya-search";
 import { authClient } from "@/lib/auth/auth-client";
+import { normalizePriceRange } from "@/lib/price-range";
 
 export const Route = createFileRoute("/results/$id")({
   component: ResultsSheet,
@@ -59,9 +76,8 @@ const PAGE_SIZE = 5;
 const STATUS_OPTIONS: VoyaResultRow["status"][] = ["loved", "maybe", "pending", "no"];
 const LODGING_TYPES = ["hotel", "apartment", "resort", "hostel", "glamping", "bnb", "boutique"];
 
-type MapPoint = { x: number; y: number; airport: string };
 type WeatherOption = {
-  emoji: string;
+  icon: LucideIcon;
   label: string;
   averageTemperature: number;
   highestTemperature: number;
@@ -82,6 +98,42 @@ type OfferInteractions = {
 
 const INTERACTIONS_STORAGE_KEY = "voya.offer-interactions.v1";
 
+const SHEET_COLLABORATORS = [
+  { id: "anna", name: "Anna Kowalska" },
+  { id: "marek", name: "Marek Nowak" },
+  { id: "ola", name: "Ola Wiśniewska" },
+] as const;
+
+const SPORT_FILTER_OPTIONS = [
+  { id: "kitesurfing", label: "Kitesurfing", matches: ["tarifa", "fuerteventura", "rodos"] },
+  {
+    id: "windsurfing",
+    label: "Windsurfing",
+    matches: ["vasiliki", "teneryfa", "sotavento", "kreta", "chania"],
+  },
+  {
+    id: "surfing",
+    label: "Surfing",
+    matches: ["surf", "ericeira", "bali", "san sebastian", "lizbona", "portugalia"],
+  },
+  { id: "skiing", label: "Narty", matches: ["narty", "ski", "alpy", "dolomity", "zakopane"] },
+  {
+    id: "diving",
+    label: "Nurkowanie",
+    matches: ["nurk", "diving", "malta", "kreta", "chania", "split"],
+  },
+  {
+    id: "trekking",
+    label: "Trekking",
+    matches: ["trek", "madera", "teneryfa", "sycylia", "marrakesz", "gory"],
+  },
+  {
+    id: "cycling",
+    label: "Rower",
+    matches: ["rower", "cycling", "majorka", "mallorca", "palma", "algarve", "istria"],
+  },
+] as const;
+
 function loadStoredInteractions(): Record<string, OfferInteractions> {
   if (typeof window === "undefined") return {};
   try {
@@ -93,16 +145,6 @@ function loadStoredInteractions(): Record<string, OfferInteractions> {
     return {};
   }
 }
-
-const ORIGIN_POINT: MapPoint = { x: 48, y: 35, airport: "WAW" };
-const MAP_POINTS: Record<string, MapPoint> = {
-  Lizbona: { x: 18, y: 63, airport: "LIS" },
-  Split: { x: 58, y: 53, airport: "SPU" },
-  "Palma de Mallorca": { x: 39, y: 62, airport: "PMI" },
-  "Kreta — Chania": { x: 70, y: 73, airport: "CHQ" },
-  Walencja: { x: 35, y: 63, airport: "VLC" },
-  Marrakesz: { x: 24, y: 82, airport: "RAK" },
-};
 
 const DESTINATION_IMAGE_URLS: Record<string, string> = {
   lisbon:
@@ -156,63 +198,63 @@ const FALLBACK_DESTINATION_IMAGE =
 
 const WEATHER_OPTIONS: WeatherOption[] = [
   {
-    emoji: "☀️",
+    icon: Sun,
     label: "Słonecznie",
     averageTemperature: 27,
     highestTemperature: 31,
     rainyDays: 0,
   },
   {
-    emoji: "🌤️",
+    icon: CloudSun,
     label: "Lekko słonecznie",
     averageTemperature: 24,
     highestTemperature: 28,
     rainyDays: 1,
   },
   {
-    emoji: "⛅",
+    icon: CloudSun,
     label: "Częściowe chmury",
     averageTemperature: 21,
     highestTemperature: 25,
     rainyDays: 2,
   },
   {
-    emoji: "🌥️",
+    icon: Cloud,
     label: "Pochmurno",
     averageTemperature: 19,
     highestTemperature: 23,
     rainyDays: 3,
   },
   {
-    emoji: "🌧️",
+    icon: CloudRain,
     label: "Deszcz",
     averageTemperature: 17,
     highestTemperature: 21,
     rainyDays: 5,
   },
   {
-    emoji: "⛈️",
+    icon: CloudLightning,
     label: "Burzowo",
     averageTemperature: 25,
     highestTemperature: 29,
     rainyDays: 3,
   },
   {
-    emoji: "🌬️",
+    icon: Wind,
     label: "Wietrznie",
     averageTemperature: 21,
     highestTemperature: 25,
     rainyDays: 1,
   },
   {
-    emoji: "❄️",
+    icon: Snowflake,
     label: "Śnieg",
     averageTemperature: -2,
     highestTemperature: 1,
     rainyDays: 4,
   },
   {
-    emoji: "🌡️",
+    icon: ThermometerSun,
     label: "Upalnie",
     averageTemperature: 33,
     highestTemperature: 38,
@@ -240,6 +282,8 @@ function ResultsSheet() {
   const [specificPlaces, setSpecificPlaces] = useState<string[]>([]);
   const [filterSelected, setFilterSelected] = useState<string[]>([]);
   const [hotelStars, setHotelStars] = useState<number | null>(null);
+  const [priceMin, setPriceMin] = useState<number | null>(null);
+  const [priceMax, setPriceMax] = useState<number | null>(null);
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [priceSort, setPriceSort] = useState<PriceSort>("none");
   const [viewMode, setViewMode] = useState<"table" | "map">("table");
@@ -250,12 +294,23 @@ function ResultsSheet() {
     id: session?.user.id ?? "local-user",
     name: session?.user.name ?? "Ty",
   };
+  const sheetMembers = useMemo(
+    () => [
+      {
+        id: session?.user.id ?? "local-user",
+        name: session?.user.name ?? "Ty",
+        image: session?.user.image ?? null,
+      },
+      ...SHEET_COLLABORATORS,
+    ],
+    [session?.user.id, session?.user.image, session?.user.name],
+  );
 
   const loadRows = async () => {
     setError("");
     const result = await fetchVoyaOffers();
     setRows(result.rows);
-    setMessage(result.payload.message || `Zrodlo: ${result.payload.source}`);
+    setMessage(getVisibleCatalogMessage(result.payload.message));
   };
 
   useEffect(() => {
@@ -264,7 +319,7 @@ function ResultsSheet() {
       .then((result) => {
         if (!active) return;
         setRows(result.rows);
-        setMessage(result.payload.message || `Zrodlo: ${result.payload.source}`);
+        setMessage(getVisibleCatalogMessage(result.payload.message));
       })
       .catch((err) => {
         if (!active) return;
@@ -313,12 +368,24 @@ function ResultsSheet() {
         return false;
       }
       if (hotelStars !== null && row.hotelStars < hotelStars) return false;
+      if (priceMin !== null && row.price < priceMin) return false;
+      if (priceMax !== null && row.price > priceMax) return false;
       return filterSelected.every((id) => rowMatchesFilter(row, id));
     });
 
     if (priceSort === "none") return next;
     return [...next].sort((a, b) => (priceSort === "asc" ? a.price - b.price : b.price - a.price));
-  }, [countryFilter, destinationMode, filterSelected, hotelStars, priceSort, rows, specificPlaces]);
+  }, [
+    countryFilter,
+    destinationMode,
+    filterSelected,
+    hotelStars,
+    priceMax,
+    priceMin,
+    priceSort,
+    rows,
+    specificPlaces,
+  ]);
 
   const visibleRows = displayRows.slice(0, visibleCount);
   const allRowsVisible = displayRows.length > 0 && visibleCount >= displayRows.length;
@@ -331,6 +398,8 @@ function ResultsSheet() {
     displayRows.length,
     filterSelected,
     hotelStars,
+    priceMax,
+    priceMin,
     priceSort,
     specificPlaces,
   ]);
@@ -442,7 +511,7 @@ function ResultsSheet() {
 
       {!fullscreen && (
         <div className="border-b border-border bg-card">
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+          <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
             <Link
               to="/"
               className="mb-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -452,13 +521,12 @@ function ResultsSheet() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">✈️</span>
+                  <PlaneTakeoff className="h-6 w-6 text-brand-blue" aria-hidden="true" />
                   <h1 className="font-display text-2xl font-bold sm:text-3xl">Wyniki</h1>
-                  <span className="rounded-full bg-brand-blue-soft px-3 py-1 text-xs font-semibold text-brand-blue-ink">
-                    {displayRows.length} z {rows.length} ofert
-                  </span>
                 </div>
-                <div className="mt-2 max-w-3xl text-sm text-muted-foreground">{message}</div>
+                {message && (
+                  <div className="mt-2 max-w-3xl text-sm text-muted-foreground">{message}</div>
+                )}
                 {error && (
                   <div className="mt-2 rounded-xl bg-brand-pink-soft px-3 py-2 text-xs text-foreground">
                     {error}
@@ -474,7 +542,7 @@ function ResultsSheet() {
         className={`sticky ${fullscreen ? "top-0" : "top-16"} z-20 border-b border-border bg-background/90 backdrop-blur`}
       >
         <div
-          className={`mx-auto flex ${fullscreen ? "max-w-none" : "max-w-7xl"} flex-wrap items-center gap-2 px-4 py-3 sm:px-6`}
+          className={`mx-auto flex ${fullscreen ? "max-w-none" : "max-w-[1600px]"} flex-wrap items-center gap-2 px-4 py-3 sm:px-6`}
         >
           <button
             onClick={() => setFiltersOpen(true)}
@@ -482,10 +550,7 @@ function ResultsSheet() {
           >
             <Filter className="h-3 w-3" /> Filtry
           </button>
-          <span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-            {displayRows.length} po filtrach
-          </span>
-          <div className="flex rounded-full border border-border bg-card p-0.5">
+          <div className="flex rounded-lg border border-border bg-card p-0.5">
             <button
               type="button"
               onClick={() => setViewMode("table")}
@@ -523,10 +588,11 @@ function ResultsSheet() {
             <RefreshCw className={`h-3 w-3 ${refreshing || loading ? "animate-spin" : ""}`} />
             {loading ? "Wczytuje..." : "Odśwież ceny"}
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <SheetAvatarGroup members={sheetMembers} />
             <button
               onClick={copyShareLink}
-              className={cn(voyaButtonVariants({ variant: "blue", size: "xs" }), "mr-2")}
+              className={voyaButtonVariants({ variant: "blue", size: "xs" })}
             >
               <Share2 className="h-3 w-3" />
               {shareCopied ? "Link skopiowany" : "Udostępnij katalog"}
@@ -543,30 +609,38 @@ function ResultsSheet() {
         </div>
       </div>
 
-      <div className={`mx-auto ${fullscreen ? "max-w-none" : "max-w-7xl"} px-4 py-6 sm:px-6`}>
+      <div className={`mx-auto ${fullscreen ? "max-w-none" : "max-w-[1600px]"} px-4 py-6 sm:px-6`}>
         {viewMode === "table" ? (
           <>
-            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-soft">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1080px] text-sm">
+                <table className="w-full min-w-[1120px] table-fixed text-sm xl:min-w-0">
+                  <colgroup>
+                    <col className="w-[18%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[17%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[7%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[4%]" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-border bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <Th>
-                        <div className="flex items-center gap-2">
-                          <span>Destynacja</span>
-                          <CountryColumnFilter
-                            countries={availableCountries}
-                            selected={countryFilter}
-                            onClear={() => setCountryFilter([])}
-                            onToggle={(country) =>
-                              setCountryFilter((current) =>
-                                current.includes(country)
-                                  ? current.filter((item) => item !== country)
-                                  : [...current, country],
-                              )
-                            }
-                          />
-                        </div>
+                        <CountryColumnFilter
+                          countries={availableCountries}
+                          selected={countryFilter}
+                          onClear={() => setCountryFilter([])}
+                          onToggle={(country) =>
+                            setCountryFilter((current) =>
+                              current.includes(country)
+                                ? current.filter((item) => item !== country)
+                                : [...current, country],
+                            )
+                          }
+                        />
                       </Th>
                       <Th>Lot</Th>
                       <Th>Hotel</Th>
@@ -576,7 +650,7 @@ function ResultsSheet() {
                         <button
                           type="button"
                           onClick={cyclePriceSort}
-                          className="inline-flex items-center gap-1 rounded-full px-2 py-1 font-medium hover:bg-background"
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-medium hover:bg-background"
                         >
                           Cena / os.
                           <span className="text-[10px]">
@@ -584,6 +658,7 @@ function ResultsSheet() {
                           </span>
                         </button>
                       </Th>
+                      <Th>Reakcje</Th>
                       <Th>Status</Th>
                       <Th className="w-10" />
                     </tr>
@@ -663,14 +738,14 @@ function ResultsSheet() {
                             </div>
                           </Td>
                           <Td>
-                            <div className="flex min-w-[205px] flex-col items-start gap-1.5">
+                            <div>
                               <div className="flex items-center gap-1">
                                 <TooltipProvider delayDuration={200}>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
                                         type="button"
-                                        className="flex h-8 min-w-8 items-center justify-center rounded-full bg-muted px-2 text-xs font-semibold text-muted-foreground hover:bg-brand-blue-soft hover:text-brand-blue-ink"
+                                        className="flex h-8 min-w-8 items-center justify-center rounded-lg bg-muted px-2 text-xs font-semibold text-muted-foreground hover:bg-brand-blue-soft hover:text-brand-blue-ink"
                                         aria-label={`${rowInteractions.likes.length} lajków. Pokaż autorów`}
                                       >
                                         {rowInteractions.likes.length}
@@ -679,7 +754,7 @@ function ResultsSheet() {
                                     <TooltipContent
                                       side="top"
                                       align="start"
-                                      className="w-56 rounded-2xl border border-border bg-card p-3 text-foreground shadow-pop"
+                                      className="w-56 rounded-xl border border-border bg-card p-3 text-foreground shadow-pop"
                                     >
                                       <div className="font-semibold">Lajki</div>
                                       {rowInteractions.likes.length > 0 ? (
@@ -699,20 +774,20 @@ function ResultsSheet() {
                                 <button
                                   type="button"
                                   onClick={() => toggleReaction(row.id, "like")}
-                                  className={`flex h-8 items-center justify-center gap-1 rounded-full px-2 text-xs font-semibold ${likedByCurrentUser ? "bg-brand-green text-white" : "hover:bg-muted"}`}
-                                  aria-label="Like"
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold ${likedByCurrentUser ? "bg-brand-green text-white" : "hover:bg-muted"}`}
+                                  aria-label="Polub ofertę"
                                   aria-pressed={likedByCurrentUser}
                                 >
-                                  <ThumbsUp className="h-3.5 w-3.5" /> Like
+                                  <ThumbsUp className="h-3.5 w-3.5" />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => toggleReaction(row.id, "unlike")}
-                                  className={`flex h-8 items-center justify-center gap-1 rounded-full px-2 text-xs font-semibold ${unlikedByCurrentUser ? "bg-brand-pink-soft text-foreground" : "hover:bg-muted"}`}
-                                  aria-label="Unlike"
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold ${unlikedByCurrentUser ? "bg-brand-pink-soft text-foreground" : "hover:bg-muted"}`}
+                                  aria-label="Oznacz ofertę jako nielubianą"
                                   aria-pressed={unlikedByCurrentUser}
                                 >
-                                  <ThumbsDown className="h-3.5 w-3.5" /> Unlike
+                                  <ThumbsDown className="h-3.5 w-3.5" />
                                 </button>
                                 <Popover
                                   open={commentTarget === row.id}
@@ -722,7 +797,7 @@ function ResultsSheet() {
                                 >
                                   <PopoverTrigger asChild>
                                     <button
-                                      className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 text-sm hover:bg-muted"
+                                      className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg px-2 text-sm hover:bg-muted"
                                       aria-label="Komentarze"
                                     >
                                       <MessageCircle className="h-3.5 w-3.5" />
@@ -732,7 +807,7 @@ function ResultsSheet() {
                                   <PopoverContent
                                     side="left"
                                     align="center"
-                                    className="w-80 rounded-2xl border-border bg-card p-4 shadow-pop"
+                                    className="w-80 rounded-xl border-border bg-card p-4 shadow-pop"
                                   >
                                     <CommentEditor
                                       comments={rowInteractions.comments}
@@ -744,48 +819,50 @@ function ResultsSheet() {
                                   </PopoverContent>
                                 </Popover>
                               </div>
-                              <Popover
-                                open={statusPickerTarget === row.id}
-                                onOpenChange={(open) => setStatusPickerTarget(open ? row.id : null)}
-                              >
-                                <PopoverTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${status.tone}`}
-                                  >
-                                    {status.label}
-                                    <ChevronDown className="h-3 w-3" />
-                                  </button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  side="left"
-                                  align="center"
-                                  className="w-52 rounded-2xl border-border bg-card p-2 shadow-pop"
-                                >
-                                  <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                    Status
-                                  </div>
-                                  {STATUS_OPTIONS.map((option) => {
-                                    const optionMeta = statusMeta[option];
-                                    const active = row.status === option;
-                                    return (
-                                      <button
-                                        key={option}
-                                        type="button"
-                                        onClick={() => {
-                                          updateStatus(row.id, option);
-                                          setStatusPickerTarget(null);
-                                        }}
-                                        className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-muted"
-                                      >
-                                        <span>{optionMeta.label}</span>
-                                        {active && <Check className="h-4 w-4 text-brand-blue" />}
-                                      </button>
-                                    );
-                                  })}
-                                </PopoverContent>
-                              </Popover>
                             </div>
+                          </Td>
+                          <Td>
+                            <Popover
+                              open={statusPickerTarget === row.id}
+                              onOpenChange={(open) => setStatusPickerTarget(open ? row.id : null)}
+                            >
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className={`inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[10px] font-semibold ${status.tone}`}
+                                >
+                                  {status.label}
+                                  <ChevronDown className="h-3 w-3" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                side="left"
+                                align="center"
+                                className="w-52 rounded-xl border-border bg-card p-2 shadow-pop"
+                              >
+                                <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  Status
+                                </div>
+                                {STATUS_OPTIONS.map((option) => {
+                                  const optionMeta = statusMeta[option];
+                                  const active = row.status === option;
+                                  return (
+                                    <button
+                                      key={option}
+                                      type="button"
+                                      onClick={() => {
+                                        updateStatus(row.id, option);
+                                        setStatusPickerTarget(null);
+                                      }}
+                                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-muted"
+                                    >
+                                      <span>{optionMeta.label}</span>
+                                      {active && <Check className="h-4 w-4 text-brand-blue" />}
+                                    </button>
+                                  );
+                                })}
+                              </PopoverContent>
+                            </Popover>
                           </Td>
                           <Td>
                             <button
@@ -801,9 +878,9 @@ function ResultsSheet() {
                     })}
                     {!loading && displayRows.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="p-8 text-center text-sm text-muted-foreground">
+                        <td colSpan={9} className="p-8 text-center text-sm text-muted-foreground">
                           {rows.length === 0
-                            ? "Brak ofert w `output/offers.json`."
+                            ? "Brak ofert."
                             : "Brak ofert pasujących do wybranych filtrów."}
                         </td>
                       </tr>
@@ -827,7 +904,7 @@ function ResultsSheet() {
                           Math.min(displayRows.length, current + PAGE_SIZE),
                         )
                       }
-                      className="w-full rounded-full bg-foreground px-4 py-2.5 text-sm font-semibold text-background shadow-pop"
+                      className="w-full rounded-full bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white shadow-pop transition hover:brightness-105"
                     >
                       Załaduj więcej ofert
                     </button>
@@ -856,7 +933,7 @@ function ResultsSheet() {
           <button
             type="button"
             onClick={undoRemove}
-            className="rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background"
+            className="rounded-full bg-brand-blue px-3 py-1 text-xs font-semibold text-white transition hover:brightness-105"
           >
             Cofnij
           </button>
@@ -864,16 +941,21 @@ function ResultsSheet() {
       )}
       {filtersOpen && (
         <SheetFiltersModal
+          places={availableCountries}
           destinationMode={destinationMode}
           specificPlaces={specificPlaces}
           selected={filterSelected}
           hotelStars={hotelStars}
+          priceMin={priceMin}
+          priceMax={priceMax}
           onClose={() => setFiltersOpen(false)}
           onSave={(next) => {
             setDestinationMode(next.destinationMode);
             setSpecificPlaces(next.specificPlaces);
             setFilterSelected(next.selected);
             setHotelStars(next.hotelStars);
+            setPriceMin(next.priceMin);
+            setPriceMax(next.priceMax);
             setFiltersOpen(false);
           }}
         />
@@ -903,20 +985,19 @@ function CountryColumnFilter({
 }) {
   const triggerLabel =
     selected.length === 0
-      ? "Kraj"
+      ? "Destynacja"
       : selected.length === 1
-        ? selected[0]
-        : `Kraje: ${selected.length}`;
+        ? `Destynacja: ${selected[0]}`
+        : `Destynacja: ${selected.length}`;
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-label={`${triggerLabel}. Filtruj kraje`}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold normal-case",
-            selected.length === 0
-              ? "bg-background text-muted-foreground"
-              : "bg-brand-blue-soft text-brand-blue-ink",
+            "inline-flex items-center gap-1 font-medium transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            selected.length === 0 ? "text-muted-foreground" : "text-foreground",
           )}
         >
           {triggerLabel}
@@ -925,7 +1006,7 @@ function CountryColumnFilter({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-56 rounded-2xl border-border bg-card p-2 text-sm shadow-pop"
+        className="w-56 rounded-xl border-border bg-card p-2 text-sm shadow-pop"
       >
         <button
           type="button"
@@ -933,7 +1014,7 @@ function CountryColumnFilter({
           className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-muted"
         >
           <span>Wszystkie kraje</span>
-          {selected.length === 0 && <Check className="h-4 w-4 text-brand-blue" />}
+          {selected.length === 0 && <Check className="h-4 w-4 text-foreground" />}
         </button>
         {countries.map((country) => (
           <button
@@ -943,7 +1024,7 @@ function CountryColumnFilter({
             className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-muted"
           >
             <span>{country}</span>
-            {selected.includes(country) && <Check className="h-4 w-4 text-brand-blue" />}
+            {selected.includes(country) && <Check className="h-4 w-4 text-foreground" />}
           </button>
         ))}
       </PopoverContent>
@@ -971,7 +1052,7 @@ function CommentEditor({
           <div className="font-display text-base font-semibold">Komentarze</div>
           <div className="text-xs text-muted-foreground">Dodaj notatkę do oferty.</div>
         </div>
-        <button type="button" onClick={onCancel} className="rounded-full p-1.5 hover:bg-muted">
+        <button type="button" onClick={onCancel} className="rounded-lg p-1.5 hover:bg-muted">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -988,14 +1069,24 @@ function CommentEditor({
       <textarea
         value={draft}
         onChange={(event) => onChange(event.target.value)}
-        className="h-24 w-full resize-none rounded-2xl border border-border bg-background p-3 text-sm outline-none focus:border-brand-blue"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            onSave();
+          }
+        }}
+        aria-keyshortcuts="Enter"
+        className="h-24 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm outline-none focus:border-brand-blue"
         placeholder="np. dobry hotel, ale lot za wcześnie"
       />
+      <div className="mt-1 text-[10px] text-muted-foreground">
+        Enter wysyła · Shift+Enter dodaje nową linię
+      </div>
       <div className="mt-3 flex justify-end gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full border border-border px-3 py-1.5 text-sm font-medium"
+          className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium"
         >
           Anuluj
         </button>
@@ -1003,13 +1094,75 @@ function CommentEditor({
           type="button"
           onClick={onSave}
           disabled={!draft.trim()}
-          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-brand-blue px-4 py-1.5 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Zapisz
         </button>
       </div>
     </div>
   );
+}
+
+function SheetAvatarGroup({
+  members,
+}: {
+  members: readonly { id: string; name: string; image?: string | null }[];
+}) {
+  const names = members.map((member) => member.name).join(", ");
+  return (
+    <TooltipProvider delayDuration={150}>
+      <div
+        className="flex -space-x-2"
+        role="group"
+        aria-label={`Osoby zalogowane w arkuszu: ${names}`}
+      >
+        {members.map((member, index) => (
+          <Tooltip key={member.id}>
+            <TooltipTrigger asChild>
+              <span
+                tabIndex={0}
+                aria-label={`${member.name}, w arkuszu`}
+                className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border-2 border-background bg-muted text-[10px] font-bold text-foreground shadow-soft focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+                style={{ zIndex: members.length - index }}
+              >
+                {member.image ? (
+                  <img src={member.image} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  getInitials(member.name)
+                )}
+                <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full border border-background bg-brand-green" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground shadow-pop"
+            >
+              <div className="font-semibold">{member.name}</div>
+              <div className="text-[10px] text-muted-foreground">Teraz w arkuszu</div>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/u)
+    .slice(0, 2)
+    .map((part) => part[0]?.toLocaleUpperCase("pl") ?? "")
+    .join("");
+}
+
+function getVisibleCatalogMessage(message?: string) {
+  if (!message) return "";
+  const normalized = normalizeText(message);
+  const referencesMissingLocalCatalog =
+    normalized.includes("brak") &&
+    (normalized.includes("output/offers.json") || normalized.includes("build_offers.py"));
+  return referencesMissingLocalCatalog ? "" : message;
 }
 
 function normalizeText(value: string) {
@@ -1080,6 +1233,10 @@ function rowMatchesFilter(row: VoyaResultRow, id: string) {
       row.weather,
     ].join(" "),
   );
+  const sport = SPORT_FILTER_OPTIONS.find((item) => item.id === id);
+  if (sport) {
+    return sport.matches.some((match) => text.includes(normalizeText(match)));
+  }
 
   if (id === "direct") return text.includes("direct") || text.includes("bez przesiad");
   if (id === "onestop") return text.includes("1 stop") || text.includes("przesiad");
@@ -1088,10 +1245,18 @@ function rowMatchesFilter(row: VoyaResultRow, id: string) {
     return match ? Number(match[1].replace(",", ".")) < 4 : true;
   }
   if (id === "pool") return row.pool === "yes" || text.includes("pool") || text.includes("basen");
+  if (id === "sun") return /slon|sun|clear/u.test(text) || row.vibes.includes("☀️");
+  if (id === "warm") {
+    const temperature = row.weather.match(/-?\d+(?:[,.]\d+)?/u)?.[0];
+    return temperature ? Number(temperature.replace(",", ".")) >= 25 : false;
+  }
+  if (id === "norain") return !/deszcz|rain|shower|burz|storm|thunder/u.test(text);
+  if (id === "snow") return /snieg|snow/u.test(text) || row.vibes.includes("❄️");
   if (id === "hotel") return text.includes("hotel");
   if (id === "apartment") return text.includes("apart") || text.includes("mieszkan");
   if (id === "resort") return text.includes("resort");
   if (id === "hostel") return text.includes("hostel");
+  if (id === "glamping") return text.includes("glamping") || text.includes("namiot");
   if (id === "bnb") return text.includes("b&b") || text.includes("pensjonat");
   if (id === "boutique") return text.includes("butik");
   if (id === "seaview") {
@@ -1162,6 +1327,7 @@ function OfferLink({
 
 function WeatherSummary({ row }: { row: VoyaResultRow }) {
   const weather = getWeatherForRow(row);
+  const WeatherIcon = weather.icon;
   const averageTemperature = `${weather.averageTemperature}°C`;
   const highestTemperature = `${weather.highestTemperature}°C`;
   return (
@@ -1170,20 +1336,20 @@ function WeatherSummary({ row }: { row: VoyaResultRow }) {
         <TooltipTrigger asChild>
           <button
             type="button"
-            className="flex h-9 min-w-[92px] items-center justify-center gap-1.5 rounded-full bg-muted px-2 text-sm font-semibold transition-colors hover:bg-brand-yellow-soft"
+            className="flex h-9 min-w-[92px] items-center justify-center gap-1.5 rounded-lg bg-muted px-2 text-sm font-semibold transition-colors hover:bg-brand-yellow-soft"
             aria-label={`Pogoda: ${weather.label}. Dni deszczowe: ${weather.rainyDays}. Średnia temperatura: ${averageTemperature}. Najwyższa temperatura: ${highestTemperature}.`}
           >
-            <span className="text-xl">{weather.emoji}</span>
+            <WeatherIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{averageTemperature}</span>
           </button>
         </TooltipTrigger>
         <TooltipContent
           side="top"
           align="start"
-          className="w-64 rounded-2xl border border-border bg-card p-3 text-foreground shadow-pop"
+          className="w-64 rounded-xl border border-border bg-card p-3 text-foreground shadow-pop"
         >
           <div className="mb-2 flex items-center gap-2">
-            <span className="text-xl">{weather.emoji}</span>
+            <WeatherIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
             <span className="font-semibold">{weather.label}</span>
           </div>
           <dl className="space-y-1.5 text-xs">
@@ -1238,10 +1404,21 @@ function getWeatherForRow(row: VoyaResultRow) {
           : description.match(/slon|sun|clear/u)
             ? "Słonecznie"
             : fallback.label;
+  const icon = description.match(/burz|storm|thunder/u)
+    ? CloudLightning
+    : description.match(/deszcz|rain|shower/u)
+      ? CloudRain
+      : description.match(/snieg|snow/u)
+        ? Snowflake
+        : description.match(/chmur|cloud/u)
+          ? Cloud
+          : description.match(/slon|sun|clear/u)
+            ? Sun
+            : fallback.icon;
 
   return {
     ...fallback,
-    emoji: row.weatherEmoji || fallback.emoji,
+    icon,
     label,
     averageTemperature,
     highestTemperature: parsedTemperature
@@ -1265,7 +1442,7 @@ function FlightMap({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-3xl border border-border bg-card p-8 text-center text-sm text-muted-foreground shadow-soft">
+      <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground shadow-soft">
         Brak ofert do pokazania na mapie.
       </div>
     );
@@ -1273,7 +1450,7 @@ function FlightMap({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
-      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-3 p-4">
           <div>
             <div className="flex items-center gap-2 font-display text-xl font-semibold">
@@ -1281,69 +1458,30 @@ function FlightMap({
               Mapa lotów
             </div>
             <div className="text-xs text-muted-foreground">
-              Prototyp widoku mapy. Przewijaj mapę i klikaj punkty ofert.
+              Przesuwaj mapę i klikaj ceny, aby wybrać ofertę.
             </div>
           </div>
-          <div className="rounded-full bg-brand-blue-soft px-3 py-1 text-xs font-semibold text-brand-blue-ink">
-            {rows.length} zaznaczonych lotów
+          <div className="rounded-md bg-brand-blue-soft px-3 py-1 text-xs font-semibold text-brand-blue-ink">
+            {rows.length} ofert na mapie
           </div>
         </div>
-        <div className="overflow-auto border-t border-border bg-brand-blue-soft/20">
-          <div className="relative h-[540px] min-w-[1120px] overflow-hidden bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.95),transparent_28%),linear-gradient(135deg,rgba(218,242,255,0.95),rgba(235,249,232,0.95)_45%,rgba(255,246,208,0.95))]">
-            <MapBlob className="left-[4%] top-[18%] h-52 w-80 rotate-[-8deg]" />
-            <MapBlob className="left-[36%] top-[23%] h-60 w-[28rem] rotate-[7deg]" />
-            <MapBlob className="left-[62%] top-[54%] h-44 w-72 rotate-[-12deg]" />
-            <MapLabel left={10} top={22} label="Atlantyk" />
-            <MapLabel left={42} top={27} label="Europa" />
-            <MapLabel left={66} top={70} label="Morze Śródziemne" />
-            <div
-              className="absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-background bg-foreground px-3 py-2 text-xs font-bold text-background shadow-pop"
-              style={{ left: `${ORIGIN_POINT.x}%`, top: `${ORIGIN_POINT.y}%` }}
-            >
-              {ORIGIN_POINT.airport}
-            </div>
-            {rows.map((row, index) => {
-              const point = getMapPoint(row, index);
-              const active = row.id === activeId;
-              return (
-                <div key={row.id}>
-                  <FlightLine point={point} active={active} />
-                  <button
-                    type="button"
-                    onClick={() => onSelect(row.id)}
-                    className={`absolute z-30 -translate-x-1/2 -translate-y-1/2 rounded-2xl border px-3 py-2 text-left text-xs shadow-pop transition-transform hover:scale-105 ${
-                      active
-                        ? "border-brand-blue bg-foreground text-background"
-                        : "border-border bg-card text-foreground"
-                    }`}
-                    style={{ left: `${point.x}%`, top: `${point.y}%` }}
-                  >
-                    <div className="flex items-center gap-1.5 font-semibold">
-                      <CountryFlag
-                        flag={row.flag}
-                        label={row.country || row.destination}
-                        className="h-3.5 w-5"
-                      />
-                      <span>{point.airport}</span>
-                    </div>
-                    <div className="whitespace-nowrap text-[10px] opacity-80">
-                      {row.destination} · {formatPrice(row.price)}
-                    </div>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+        <div className="border-t border-border p-3">
+          <OfferMap
+            rows={rows}
+            selected={selected ?? null}
+            onSelect={(offer) => onSelect(offer.id)}
+            className="h-[540px]"
+          />
         </div>
       </div>
 
-      <aside className="rounded-3xl border border-border bg-card p-4 shadow-soft">
+      <aside className="rounded-xl border border-border bg-card p-4 shadow-soft">
         <div className="mb-3 flex items-center gap-2">
           <PlaneTakeoff className="h-4 w-4 text-brand-green" />
           <div className="font-display text-lg font-semibold">Loty w katalogu</div>
         </div>
         {selected && (
-          <div className="mb-4 rounded-2xl bg-brand-yellow-soft/55 p-3">
+          <div className="mb-4 rounded-lg bg-brand-yellow-soft/55 p-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-brand-yellow-ink">
               Zaznaczona oferta
             </div>
@@ -1376,15 +1514,14 @@ function FlightMap({
           </div>
         )}
         <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
-          {rows.map((row, index) => {
-            const point = getMapPoint(row, index);
+          {rows.map((row) => {
             const active = row.id === activeId;
             return (
               <button
                 key={row.id}
                 type="button"
                 onClick={() => onSelect(row.id)}
-                className={`w-full rounded-2xl border p-3 text-left text-sm transition-colors ${
+                className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
                   active
                     ? "border-brand-blue bg-brand-blue-soft"
                     : "border-border bg-background hover:bg-muted"
@@ -1401,8 +1538,8 @@ function FlightMap({
                       {row.destination}
                     </span>
                   </span>
-                  <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-semibold">
-                    {point.airport}
+                  <span className="rounded-md bg-card px-2 py-0.5 text-[10px] font-semibold">
+                    {row.destIata || row.destination.slice(0, 3).toUpperCase()}
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
@@ -1417,81 +1554,43 @@ function FlightMap({
   );
 }
 
-function getMapPoint(row: VoyaResultRow, index: number): MapPoint {
-  if (MAP_POINTS[row.destination]) return MAP_POINTS[row.destination];
-  return {
-    x: 24 + ((index * 17) % 58),
-    y: 43 + ((index * 13) % 40),
-    airport: row.destIata || row.destination.slice(0, 3).toUpperCase(),
-  };
-}
-
-function FlightLine({ point, active }: { point: MapPoint; active: boolean }) {
-  const dx = point.x - ORIGIN_POINT.x;
-  const dy = point.y - ORIGIN_POINT.y;
-  const style: CSSProperties = {
-    left: `${ORIGIN_POINT.x}%`,
-    top: `${ORIGIN_POINT.y}%`,
-    width: `${Math.sqrt(dx * dx + dy * dy)}%`,
-    transform: `rotate(${Math.atan2(dy, dx) * (180 / Math.PI)}deg)`,
-  };
-  return (
-    <span
-      className={`absolute z-10 h-0.5 origin-left rounded-full ${
-        active ? "bg-brand-blue opacity-90" : "bg-foreground/20 opacity-70"
-      }`}
-      style={style}
-    />
-  );
-}
-
-function MapBlob({ className }: { className: string }) {
-  return (
-    <span
-      className={`absolute rounded-[45%] bg-background/75 shadow-soft ring-1 ring-border/40 ${className}`}
-    />
-  );
-}
-
-function MapLabel({ left, top, label }: { left: number; top: number; label: string }) {
-  return (
-    <span
-      className="absolute rounded-full bg-background/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
-      style={{ left: `${left}%`, top: `${top}%` }}
-    >
-      {label}
-    </span>
-  );
-}
-
 function SheetFiltersModal({
+  places,
   destinationMode,
   specificPlaces,
   selected,
   hotelStars,
+  priceMin,
+  priceMax,
   onClose,
   onSave,
 }: {
+  places: string[];
   destinationMode: "any" | "specific";
   specificPlaces: string[];
   selected: string[];
   hotelStars: number | null;
+  priceMin: number | null;
+  priceMax: number | null;
   onClose: () => void;
   onSave: (value: {
     destinationMode: "any" | "specific";
     specificPlaces: string[];
     selected: string[];
     hotelStars: number | null;
+    priceMin: number | null;
+    priceMax: number | null;
   }) => void;
 }) {
   const [nextDestinationMode, setNextDestinationMode] = useState(destinationMode);
   const [nextPlaces, setNextPlaces] = useState(specificPlaces);
   const [nextSelected, setNextSelected] = useState(selected);
   const [nextStars, setNextStars] = useState(hotelStars);
-  const [activeSection, setActiveSection] = useState<"hotel" | "destination">("hotel");
+  const [nextPriceMin, setNextPriceMin] = useState(priceMin);
+  const [nextPriceMax, setNextPriceMax] = useState(priceMax);
   const allVibes = VIBES;
   const destinationPills = allVibes.filter(
-    (vibe) => vibe.category === "destination" || vibe.category === "mood",
+    (vibe) => (vibe.category === "destination" || vibe.category === "mood") && vibe.id !== "active",
   );
   const climatePills = allVibes.filter((vibe) => vibe.category === "climate");
   const stayPills = allVibes.filter((vibe) => vibe.category === "stay");
@@ -1499,7 +1598,11 @@ function SheetFiltersModal({
   const amenities = stayPills.filter((vibe) => !LODGING_TYPES.includes(vibe.id));
   const toggleLocal = (id: string) =>
     setNextSelected((current) => {
-      const exclusiveGroup = ["direct", "onestop"].includes(id) ? ["direct", "onestop"] : null;
+      const exclusiveGroup = ["direct", "onestop"].includes(id)
+        ? ["direct", "onestop"]
+        : ["warm", "snow"].includes(id)
+          ? ["warm", "snow"]
+          : null;
       if (exclusiveGroup) {
         return current.includes(id)
           ? current.filter((item) => item !== id)
@@ -1514,18 +1617,18 @@ function SheetFiltersModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-16 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/40 p-4 pt-10 backdrop-blur-sm"
       onMouseDown={onClose}
     >
       <div
-        className="w-full max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-pop"
+        className="max-h-[calc(100vh-5rem)] w-full max-w-6xl overflow-y-auto rounded-lg border border-border bg-card p-5 shadow-pop sm:p-6"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <div className="font-display text-xl font-semibold">Filtry katalogu</div>
             <div className="text-xs text-muted-foreground">
-              Możesz zmienić miejsce, charakter wyjazdu i filtry hotelu.
+              Te same kryteria co w wyszukiwarce głównej, zastosowane do ofert w arkuszu.
             </div>
           </div>
           <button onClick={onClose} className="rounded-full p-2 hover:bg-muted">
@@ -1533,53 +1636,20 @@ function SheetFiltersModal({
           </button>
         </div>
 
-        <div className="mb-4 flex gap-2 rounded-full bg-muted p-1">
-          <button
-            type="button"
-            onClick={() => setActiveSection("hotel")}
-            className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${
-              activeSection === "hotel" ? "bg-background shadow-pop" : "text-muted-foreground"
-            }`}
+        <div className="grid gap-3 lg:grid-cols-12">
+          <FilterSection
+            title="Destynacja"
+            icon={<Compass className="h-4 w-4" />}
+            className="lg:col-span-7"
           >
-            Hotel i udogodnienia
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSection("destination")}
-            className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${
-              activeSection === "destination" ? "bg-background shadow-pop" : "text-muted-foreground"
-            }`}
-          >
-            Kraj i klimat
-          </button>
-        </div>
-
-        {activeSection === "hotel" ? (
-          <div className="space-y-4 rounded-2xl bg-brand-green-soft/30 p-4">
-            <FilterPillGroup
-              title="Zakwaterowanie"
-              pills={lodging}
-              selected={nextSelected}
-              toggle={toggleLocal}
-            />
-            <FilterPillGroup
-              title="Udogodnienia"
-              pills={amenities}
-              selected={nextSelected}
-              toggle={toggleLocal}
-            />
-            <StarThresholdPicker value={nextStars} onChange={setNextStars} />
-          </div>
-        ) : (
-          <div className="space-y-4 rounded-2xl border border-border bg-background p-4">
-            <div className="flex gap-2 rounded-full bg-muted p-1">
+            <div className="mb-4 flex gap-1 rounded-lg bg-muted p-1">
               <button
                 type="button"
                 onClick={() => setNextDestinationMode("any")}
-                className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                   nextDestinationMode === "any"
-                    ? "bg-background shadow-pop"
-                    : "text-muted-foreground"
+                    ? "bg-background text-foreground shadow-soft"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Dowolne miejsce
@@ -1587,81 +1657,166 @@ function SheetFiltersModal({
               <button
                 type="button"
                 onClick={() => setNextDestinationMode("specific")}
-                className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold ${
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                   nextDestinationMode === "specific"
-                    ? "bg-background shadow-pop"
-                    : "text-muted-foreground"
+                    ? "bg-background text-foreground shadow-soft"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Konkretne miejsce
+                Wybrane kraje
               </button>
             </div>
 
-            {nextDestinationMode === "any" ? (
-              <div className="space-y-4">
-                <FilterPillGroup
-                  title="Charakter miejsca"
-                  pills={destinationPills}
-                  selected={nextSelected}
-                  toggle={toggleLocal}
-                />
-                <FilterPillGroup
-                  title="Pogoda i klimat"
-                  pills={climatePills}
-                  selected={nextSelected}
-                  toggle={toggleLocal}
-                />
-              </div>
-            ) : (
-              <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Zmień miejsce
+            {nextDestinationMode === "specific" && (
+              <div className="mb-4">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Kraje
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { code: "ES", label: "Hiszpania" },
-                    { code: "PT", label: "Portugalia" },
-                    { code: "GR", label: "Grecja" },
-                    { code: "HR", label: "Chorwacja" },
-                    { code: "IT", label: "Włochy" },
-                  ].map((place) => (
-                    <button
-                      key={place.code}
-                      type="button"
-                      onClick={() => togglePlace(place.label)}
-                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                        nextPlaces.includes(place.label)
-                          ? "bg-brand-blue text-white shadow-pop"
-                          : "bg-muted hover:bg-brand-blue-soft"
-                      }`}
-                    >
-                      <CountryFlag code={place.code} label={place.label} />
-                      {place.label}
-                    </button>
-                  ))}
+                  {places.map((place) => {
+                    const active = nextPlaces.includes(place);
+                    return (
+                      <button
+                        key={place}
+                        type="button"
+                        onClick={() => togglePlace(place)}
+                        aria-pressed={active}
+                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          active
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border bg-background hover:bg-muted"
+                        }`}
+                      >
+                        <CountryFlag code={countryCodeForName(place)} label={place} />
+                        {place}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
-          </div>
-        )}
+
+            <FilterPillGroup
+              title="Charakter miejsca"
+              pills={destinationPills}
+              selected={nextSelected}
+              toggle={toggleLocal}
+            />
+          </FilterSection>
+
+          <FilterSection
+            title="Pogoda"
+            icon={<CloudSun className="h-4 w-4" />}
+            className="lg:col-span-5"
+          >
+            <FilterPillGroup
+              title="Warunki"
+              pills={climatePills}
+              selected={nextSelected}
+              toggle={toggleLocal}
+            />
+          </FilterSection>
+
+          <FilterSection
+            title="Aktywnie"
+            icon={<Activity className="h-4 w-4" />}
+            className="lg:col-span-12"
+          >
+            <div className="flex flex-wrap gap-2">
+              {SPORT_FILTER_OPTIONS.map((sport) => {
+                const active = nextSelected.includes(sport.id);
+                return (
+                  <button
+                    key={sport.id}
+                    type="button"
+                    onClick={() => toggleLocal(sport.id)}
+                    aria-pressed={active}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors",
+                      active
+                        ? "border-brand-green/50 bg-brand-green-soft text-brand-green-ink"
+                        : "border-border bg-background hover:bg-muted",
+                    )}
+                  >
+                    <SportIcon id={sport.id} className="h-4 w-4" />
+                    {sport.label}
+                    {active && <Check className="h-3.5 w-3.5" />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <FilterSection
+            title="Hotel"
+            icon={<Building2 className="h-4 w-4" />}
+            className="lg:col-span-7"
+          >
+            <div className="space-y-4">
+              <FilterPillGroup
+                title="Typ zakwaterowania"
+                pills={lodging}
+                selected={nextSelected}
+                toggle={toggleLocal}
+              />
+              <FilterPillGroup
+                title="Udogodnienia"
+                pills={amenities}
+                selected={nextSelected}
+                toggle={toggleLocal}
+              />
+              <StarThresholdPicker value={nextStars} onChange={setNextStars} />
+            </div>
+          </FilterSection>
+
+          <FilterSection
+            title="Lot"
+            icon={<PlaneTakeoff className="h-4 w-4" />}
+            className="lg:col-span-5"
+          >
+            <FilterPillGroup
+              title="Połączenie"
+              pills={allVibes.filter((vibe) => vibe.category === "flight")}
+              selected={nextSelected}
+              toggle={toggleLocal}
+            />
+          </FilterSection>
+
+          <FilterSection
+            title="Cena"
+            icon={<WalletCards className="h-4 w-4" />}
+            className="lg:col-span-12"
+          >
+            <CompactPriceSlider
+              minPrice={nextPriceMin}
+              maxPrice={nextPriceMax}
+              onMinPriceChange={setNextPriceMin}
+              onMaxPriceChange={setNextPriceMax}
+              className="w-full max-w-lg"
+            />
+          </FilterSection>
+        </div>
 
         <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-full border border-border px-4 py-2 text-sm font-medium"
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
           >
             Anuluj
           </button>
           <button
-            onClick={() =>
+            onClick={() => {
+              const normalizedPriceRange = normalizePriceRange(nextPriceMin, nextPriceMax);
               onSave({
                 destinationMode: nextDestinationMode,
                 specificPlaces: nextPlaces,
                 selected: nextSelected,
                 hotelStars: nextStars,
-              })
-            }
-            className="rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background"
+                priceMin: normalizedPriceRange.minPrice,
+                priceMax: normalizedPriceRange.maxPrice,
+              });
+            }}
+            className="rounded-lg bg-brand-blue px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105"
           >
             Zapisz
           </button>
@@ -1669,6 +1824,40 @@ function SheetFiltersModal({
       </div>
     </div>
   );
+}
+
+function FilterSection({
+  title,
+  icon,
+  className,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className={cn("rounded-lg border border-border bg-background p-4", className)}>
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+        <span className="text-muted-foreground">{icon}</span>
+        {title}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function countryCodeForName(country: string) {
+  const codes: Record<string, string> = {
+    Chorwacja: "HR",
+    Grecja: "GR",
+    Hiszpania: "ES",
+    Maroko: "MA",
+    Portugalia: "PT",
+    Włochy: "IT",
+  };
+  return codes[country];
 }
 
 function FilterPillGroup({
@@ -1691,7 +1880,7 @@ function FilterPillGroup({
         {pills.map((pill) => (
           <VibePill
             key={pill.id}
-            emoji={pill.emoji}
+            id={pill.id}
             label={pill.label}
             tone={pill.tone}
             active={selected.includes(pill.id)}

@@ -53,7 +53,7 @@ function AlertsPageContent() {
           </div>
           <button
             onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white shadow-pop"
+            className="inline-flex items-center gap-2 rounded-full bg-brand-blue px-5 py-2.5 text-sm font-semibold text-white shadow-pop transition hover:brightness-105"
           >
             <Plus className="h-4 w-4" /> Nowy alert
           </button>
@@ -221,7 +221,7 @@ function CreateAlertModal({ onClose }: { onClose: () => void }) {
   const [ch, setCh] = useState<{ email: boolean; push: boolean }>({ email: true, push: true });
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-pop">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-pop">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-yellow text-xl text-brand-yellow-ink">
@@ -288,7 +288,7 @@ function CreateAlertModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             onClick={onClose}
-            className="rounded-full bg-brand-blue px-5 py-2 text-sm font-semibold text-white"
+            className="rounded-full bg-brand-blue px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105"
           >
             Utwórz alert
           </button>

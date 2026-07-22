@@ -1,24 +1,26 @@
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FilterIcon } from "@/components/voya/FilterIcon";
 import { tonePillClasses } from "@/components/voya/style-system";
 
-type Tone = "blue" | "green" | "yellow" | "pink" | "neutral";
+type Tone = keyof typeof tonePillClasses;
 
 export function VibePill({
-  emoji,
+  id,
   label,
   tone = "neutral",
   active = false,
   onClick,
   size = "md",
 }: {
-  emoji: string;
+  id: string;
   label: string;
   tone?: Tone;
   active?: boolean;
   onClick?: () => void;
   size?: "sm" | "md" | "lg";
 }) {
-  const t = tonePillClasses[tone];
+  const toneClasses = tonePillClasses[tone];
   return (
     <button
       type="button"
@@ -27,21 +29,19 @@ export function VibePill({
         "pill-vibe",
         size === "sm" && "px-3 py-1.5 text-xs",
         size === "lg" && "px-5 py-3 text-base",
-        active ? t.active : t.idle,
+        active ? toneClasses.active : toneClasses.idle,
       )}
       aria-pressed={active}
     >
-      <span className="text-base leading-none">{emoji}</span>
+      <FilterIcon id={id} />
       <span>{label}</span>
-      <span
+      <Check
         aria-hidden={!active}
         className={cn(
-          "ml-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-opacity",
-          active ? "bg-white/25 opacity-100" : "opacity-0",
+          "ml-0.5 h-3.5 w-3.5 shrink-0 transition-opacity",
+          active ? "opacity-100" : "opacity-0",
         )}
-      >
-        ✓
-      </span>
+      />
     </button>
   );
 }
