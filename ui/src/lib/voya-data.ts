@@ -146,6 +146,7 @@ export type SheetSummary = {
   updated: string;
   vibes: string[];
   cover: string;
+  countryCode: string;
   status: "live" | "planning" | "booked";
 };
 
@@ -159,9 +160,10 @@ export const DEMO_SHEETS: SheetSummary[] = [
     collaborators: 4,
     rows: 6,
     updated: "2 min temu",
-    vibes: ["🏊", "🎉", "☀️", "💰", "🏖️"],
+    vibes: ["Plaża", "Impreza", "Słońce", "All-inclusive"],
     cover:
       "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=60",
+    countryCode: "es",
     status: "live",
   },
   {
@@ -173,9 +175,10 @@ export const DEMO_SHEETS: SheetSummary[] = [
     collaborators: 2,
     rows: 4,
     updated: "wczoraj",
-    vibes: ["💎", "🧘", "🌴", "🍹"],
+    vibes: ["Nurkowanie", "Wulkany", "Dżungla"],
     cover:
       "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=800&q=60",
+    countryCode: "id",
     status: "planning",
   },
   {
@@ -187,9 +190,10 @@ export const DEMO_SHEETS: SheetSummary[] = [
     collaborators: 3,
     rows: 8,
     updated: "3 dni temu",
-    vibes: ["🍹", "🧒", "🏊", "☀️"],
+    vibes: ["Rodzinne", "Snorkeling", "Basen", "Słońce"],
     cover:
       "https://images.unsplash.com/photo-1512100356356-de1b84283e18?auto=format&fit=crop&w=800&q=60",
+    countryCode: "tr",
     status: "planning",
   },
   {
@@ -201,9 +205,10 @@ export const DEMO_SHEETS: SheetSummary[] = [
     collaborators: 2,
     rows: 5,
     updated: "tydzień temu",
-    vibes: ["🍜", "🏛️", "🌃"],
+    vibes: ["Kawiarnie", "Muzea", "Zabytki"],
     cover:
       "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=60",
+    countryCode: "fr",
     status: "booked",
   },
   {
@@ -215,9 +220,10 @@ export const DEMO_SHEETS: SheetSummary[] = [
     collaborators: 5,
     rows: 3,
     updated: "2 tyg temu",
-    vibes: ["❄️", "🏔️", "💎"],
+    vibes: ["Narty", "Góry", "Après-ski"],
     cover:
       "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=60",
+    countryCode: "at",
     status: "planning",
   },
 ];
@@ -369,7 +375,7 @@ export const DEMO_ALERTS: PriceAlert[] = [
     currency: "PLN",
     channel: ["email", "push"],
     active: true,
-    vibes: ["🎉", "☀️", "🏖️"],
+    vibes: ["Impreza", "Słońce", "Plaża"],
     history: [2100, 2050, 1980, 2020, 1950, 1890, 1920, 1870, 1900, 1840],
     change: -8,
   },
@@ -382,7 +388,7 @@ export const DEMO_ALERTS: PriceAlert[] = [
     currency: "PLN",
     channel: ["push"],
     active: true,
-    vibes: ["🏛️", "🍜", "📸"],
+    vibes: ["Zabytki", "Kuchnia", "Miasto"],
     history: [4200, 4100, 3980, 3900, 3800, 3700, 3600, 3550, 3400, 3320],
     change: -21,
   },
@@ -395,7 +401,7 @@ export const DEMO_ALERTS: PriceAlert[] = [
     currency: "PLN",
     channel: ["email"],
     active: true,
-    vibes: ["🏊", "🧘", "🏖️"],
+    vibes: ["Basen", "Joga", "Plaża"],
     history: [3200, 3250, 3300, 3400, 3350, 3300, 3380, 3420, 3450, 3450],
     change: 8,
   },
@@ -408,7 +414,7 @@ export const DEMO_ALERTS: PriceAlert[] = [
     currency: "PLN",
     channel: ["email", "push"],
     active: false,
-    vibes: ["❄️", "📸"],
+    vibes: ["Śnieg", "Zdjęcia"],
     history: [2300, 2250, 2200, 2180, 2150, 2120, 2100, 2080, 2100, 2100],
     change: -9,
   },

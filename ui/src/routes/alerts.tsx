@@ -5,6 +5,7 @@ import { CountryFlag } from "@/components/voya/CountryFlag";
 import { TopBar } from "@/components/voya/TopBar";
 import { RequireAuth } from "@/components/voya/RequireAuth";
 import { DEMO_ALERTS, type PriceAlert } from "@/lib/voya-data";
+import { vibeIcon } from "@/lib/vibe-icons";
 
 export const Route = createFileRoute("/alerts")({
   component: AlertsPage,
@@ -80,17 +81,22 @@ function AlertCard({ a, onToggle }: { a: PriceAlert; onToggle: () => void }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-            <CountryFlag flag={a.flag} label={a.route} className="h-6 w-9" />
-          </span>
+          <CountryFlag flag={a.flag} label={a.route} className="h-8 w-12 shrink-0" />
           <div>
             <div className="font-display text-lg font-semibold">{a.route}</div>
-            <div className="mt-0.5 flex flex-wrap gap-1">
-              {a.vibes.map((v, i) => (
-                <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                  {v}
-                </span>
-              ))}
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {a.vibes.map((v, i) => {
+                const Icon = vibeIcon(v);
+                return (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    {v}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>

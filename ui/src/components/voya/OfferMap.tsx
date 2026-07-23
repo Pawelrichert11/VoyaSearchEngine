@@ -396,25 +396,27 @@ function normalizeLocation(value: string) {
 function makeOfferIcon(leaflet: LeafletModule, row: VoyaResultRow, isSelected: boolean) {
   const root = document.createElement("div");
   root.className = cn(
-    "relative grid max-w-[9.5rem] -translate-x-1/2 -translate-y-full cursor-pointer select-none gap-0.5 rounded-md border px-2.5 py-1.5 text-left shadow-lg backdrop-blur-md transition-transform duration-150 hover:-translate-y-[calc(100%+2px)] hover:scale-[1.03]",
+    "relative grid w-max max-w-[12rem] -translate-x-1/2 -translate-y-full cursor-pointer select-none gap-0.5 rounded-lg border px-2.5 py-1.5 text-left shadow-[0_4px_14px_rgba(15,23,42,0.28)] transition-transform duration-150 hover:-translate-y-[calc(100%+2px)] hover:scale-[1.03]",
     isSelected
       ? "border-brand-blue bg-brand-blue text-white"
-      : "border-white/90 bg-card/95 text-foreground",
+      : "border-slate-200 bg-white text-foreground",
   );
 
   const destination = document.createElement("span");
-  destination.className =
-    "block max-w-[8rem] truncate text-[10px] font-medium leading-none opacity-80";
+  destination.className = cn(
+    "block max-w-[8.5rem] truncate text-[10px] font-medium leading-tight",
+    isSelected ? "text-white/85" : "text-slate-500",
+  );
   destination.textContent = row.destination;
 
   const price = document.createElement("span");
-  price.className = "block whitespace-nowrap text-xs font-bold leading-none";
+  price.className = "block whitespace-nowrap text-[13px] font-bold leading-tight";
   price.textContent = formatPrice(row);
 
   const pointer = document.createElement("span");
   pointer.className = cn(
-    "absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r",
-    isSelected ? "border-brand-blue bg-brand-blue" : "border-white/90 bg-card/95",
+    "absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r",
+    isSelected ? "border-brand-blue bg-brand-blue" : "border-slate-200 bg-white",
   );
   pointer.setAttribute("aria-hidden", "true");
 
@@ -423,7 +425,7 @@ function makeOfferIcon(leaflet: LeafletModule, row: VoyaResultRow, isSelected: b
   return leaflet.divIcon({
     className: "",
     html: root,
-    iconAnchor: [0, 4],
+    iconAnchor: [0, 12],
     iconSize: [0, 0],
   });
 }

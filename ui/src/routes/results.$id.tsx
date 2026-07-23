@@ -1683,7 +1683,7 @@ function SheetFiltersModal({
                         aria-pressed={active}
                         className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
                           active
-                            ? "border-foreground bg-foreground text-background"
+                            ? "border-brand-blue-ink bg-brand-blue text-white"
                             : "border-border bg-background hover:bg-muted"
                         }`}
                       >
@@ -1734,7 +1734,7 @@ function SheetFiltersModal({
                     className={cn(
                       "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors",
                       active
-                        ? "border-brand-green/50 bg-brand-green-soft text-brand-green-ink"
+                        ? "border-brand-blue-ink bg-brand-blue text-white"
                         : "border-border bg-background hover:bg-muted",
                     )}
                   >

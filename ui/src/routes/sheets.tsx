@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users } from "lucide-react";
 import { TopBar } from "@/components/voya/TopBar";
+import { CountryFlag } from "@/components/voya/CountryFlag";
 import { RequireAuth } from "@/components/voya/RequireAuth";
 import { DEMO_SHEETS } from "@/lib/voya-data";
+import { vibeIcon } from "@/lib/vibe-icons";
 
 export const Route = createFileRoute("/sheets")({
   component: SheetsList,
@@ -16,21 +17,26 @@ export const Route = createFileRoute("/sheets")({
 
 const statusMeta = {
   live: {
-    label: "na żywo",
-    tone: "bg-brand-green-soft text-brand-green-ink",
-    dot: "bg-brand-green animate-pulse",
+    label: "W toku",
+    tone: "bg-brand-green text-white",
   },
   planning: {
-    label: "planowanie",
-    tone: "bg-brand-yellow-soft text-brand-yellow-ink",
-    dot: "bg-brand-yellow",
+    label: "Planowanie",
+    tone: "bg-brand-yellow-ink text-white",
   },
   booked: {
-    label: "zarezerwowane",
-    tone: "bg-brand-blue-soft text-brand-blue-ink",
-    dot: "bg-brand-blue",
+    label: "Zarezerwowane",
+    tone: "bg-brand-blue text-white",
   },
 } as const;
+
+function pluralize(count: number, one: string, few: string, many: string) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (count === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
 
 function SheetsList() {
   return (
@@ -54,56 +60,71 @@ function SheetsListContent() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {DEMO_SHEETS.map((s) => {
             const meta = statusMeta[s.status];
+            const people = pluralize(s.collaborators, "osoba", "osoby", "osób");
+            const offers = pluralize(s.rows, "oferta", "oferty", "ofert");
             return (
               <Link
                 key={s.id}
                 to="/results/$id"
                 params={{ id: s.id }}
-                className="group relative overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-transform hover:-translate-y-1 hover:shadow-pop"
+                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-transform hover:-translate-y-1 hover:shadow-pop"
               >
-                <div className="relative h-36 overflow-hidden">
+                <div className="flex items-start justify-between gap-2 px-4 pb-3 pt-3.5">
+                  <div className="flex flex-col gap-1">
+                    <span
+                      className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${meta.tone}`}
+                    >
+                      {meta.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Aktualizacja: {s.updated}
+                    </span>
+                  </div>
+                  <CountryFlag
+                    code={s.countryCode}
+                    label={s.subtitle}
+                    className="mt-0.5 h-6 w-9 shrink-0"
+                  />
+                </div>
+
+                <div className="relative h-[152px] overflow-hidden">
                   <img
                     src={s.cover}
                     alt=""
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/10 to-transparent" />
-                  <span
-                    className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${meta.tone}`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} /> {meta.label}
-                  </span>
-                  <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-card text-xl shadow-pop">
-                      {s.emoji}
-                    </span>
-                    <div className="text-background">
-                      <div className="font-display text-base font-semibold leading-tight drop-shadow">
-                        {s.title}
-                      </div>
-                      <div className="text-[11px] opacity-90">{s.subtitle}</div>
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/65 to-transparent" />
+                  <div className="absolute inset-x-3.5 bottom-3 min-w-0 text-white">
+                    <div className="truncate font-display text-base font-bold leading-tight drop-shadow">
+                      {s.title}
                     </div>
+                    <div className="truncate text-xs opacity-90 drop-shadow">{s.subtitle}</div>
                   </div>
                 </div>
-                <div className="p-4">
-                  <div className="flex flex-wrap gap-1">
-                    {s.vibes.map((v, i) => (
-                      <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                        {v}
-                      </span>
-                    ))}
+
+                <div className="flex flex-col gap-3 px-4 pb-4 pt-3.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {s.vibes.map((v, i) => {
+                      const Icon = vibeIcon(v);
+                      return (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+                        >
+                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          {v}
+                        </span>
+                      );
+                    })}
                   </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{s.dates}</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="h-3 w-3" /> {s.collaborators} · {s.rows} ofert
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">{s.dates}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {s.collaborators} {people} · {s.rows} {offers}
                     </span>
-                  </div>
-                  <div className="mt-2 text-[11px] text-muted-foreground">
-                    Aktualizacja: {s.updated}
                   </div>
                 </div>
               </Link>

@@ -63,30 +63,19 @@ export const voyaSegmentVariants = cva(
   },
 );
 
+// Unified pill styling: every tone renders the same neutral pill at idle and a
+// single blue accent when selected, so filter groups stay visually consistent
+// instead of showing a multi-colour palette.
+const unifiedPill = {
+  active:
+    "border-brand-blue-ink bg-brand-blue text-white ring-2 ring-brand-blue/40 ring-offset-2 ring-offset-background shadow-pop",
+  idle: "border-border bg-background text-foreground hover:bg-muted",
+} as const;
+
 export const tonePillClasses = {
-  blue: {
-    active:
-      "border-brand-blue-ink bg-brand-blue text-white ring-2 ring-brand-blue/40 ring-offset-2 ring-offset-background shadow-pop",
-    idle: "border-brand-blue-soft bg-brand-blue-soft text-brand-blue-ink hover:brightness-105",
-  },
-  green: {
-    active:
-      "border-brand-green-ink bg-brand-green text-white ring-2 ring-brand-green/40 ring-offset-2 ring-offset-background shadow-pop",
-    idle: "border-brand-green-soft bg-brand-green-soft text-brand-green-ink hover:brightness-105",
-  },
-  yellow: {
-    active:
-      "border-brand-yellow-ink bg-brand-yellow text-brand-yellow-ink ring-2 ring-brand-yellow/60 ring-offset-2 ring-offset-background shadow-pop",
-    idle: "border-brand-yellow-soft bg-brand-yellow-soft text-brand-yellow-ink hover:brightness-105",
-  },
-  pink: {
-    active:
-      "border-brand-pink bg-brand-pink text-white ring-2 ring-brand-pink/40 ring-offset-2 ring-offset-background shadow-pop",
-    idle: "border-brand-pink-soft bg-brand-pink-soft text-foreground hover:brightness-105",
-  },
-  neutral: {
-    active:
-      "border-foreground bg-foreground text-background ring-2 ring-foreground/30 ring-offset-2 ring-offset-background shadow-pop",
-    idle: "border-border bg-background text-foreground hover:bg-muted",
-  },
+  blue: unifiedPill,
+  green: unifiedPill,
+  yellow: unifiedPill,
+  pink: unifiedPill,
+  neutral: unifiedPill,
 } as const;
