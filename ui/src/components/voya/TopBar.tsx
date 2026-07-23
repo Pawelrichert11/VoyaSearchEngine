@@ -104,10 +104,7 @@ export function TopBar() {
           <button
             type="button"
             onClick={() => setLanguageOpen(true)}
-            className={cn(
-              voyaButtonVariants({ variant: "outline", size: "sm" }),
-              "border-brand-yellow/45 bg-brand-yellow-soft/70 text-brand-yellow-ink",
-            )}
+            className={cn(voyaButtonVariants({ variant: "primary", size: "sm" }))}
             aria-label={copy.changeLanguage}
           >
             <Globe2 className="h-4 w-4" />
@@ -165,7 +162,7 @@ export function TopBar() {
             <Link
               to="/login"
               className={cn(
-                voyaButtonVariants({ variant: "green", size: "md" }),
+                voyaButtonVariants({ variant: "primary", size: "md" }),
                 "hidden sm:inline-flex",
               )}
             >
